@@ -470,7 +470,7 @@ final class LightControl {
     }
 
     /// Brightness of the other lights while one is identified.
-    private static let identifyDim = 0.2
+    private static let identifyDim = 0.1
 
     /// A distinct color per channel, evenly spaced around the color wheel in channel order (a strip
     /// becomes a rainbow). Shown on the canvas when nothing is live and on the real lights while
