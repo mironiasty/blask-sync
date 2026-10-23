@@ -41,10 +41,41 @@ public struct EntertainmentArea: Identifiable, Hashable, Sendable, Decodable {
     public let configurationType: String
     /// `active` while some app is streaming to it, otherwise `inactive`.
     public let status: String
-    public let channelCount: Int
+    public let channels: [Channel]
+
+    /// One independently colorable zone. A plain bulb is one channel; a gradient strip may be several.
+    public struct Channel: Identifiable, Hashable, Sendable, Decodable {
+        public let id: UInt8
+        /// Position in the room, each axis in -1...1: x left→right, y back→front (screen side is +1), z down→up.
+        public let position: Position
+        /// IDs of the `entertainment` services (one per light) that render this channel.
+        public let serviceIds: [String]
+
+        public struct Position: Hashable, Sendable, Decodable {
+            public let x: Double
+            public let y: Double
+            public let z: Double
+        }
+
+        private struct Member: Decodable {
+            struct Service: Decodable { let rid: String }
+            let service: Service
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case id = "channel_id"
+            case position, members
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(UInt8.self, forKey: .id)
+            position = try c.decode(Position.self, forKey: .position)
+            serviceIds = try c.decode([Member].self, forKey: .members).map(\.service.rid)
+        }
+    }
 
     private struct Metadata: Decodable { let name: String }
-    private struct Channel: Decodable { let channel_id: Int }
 
     private enum CodingKeys: String, CodingKey {
         case id, metadata, status, channels
@@ -57,7 +88,27 @@ public struct EntertainmentArea: Identifiable, Hashable, Sendable, Decodable {
         name = try c.decode(Metadata.self, forKey: .metadata).name
         configurationType = try c.decode(String.self, forKey: .configurationType)
         status = try c.decode(String.self, forKey: .status)
-        channelCount = try c.decode([Channel].self, forKey: .channels).count
+        channels = try c.decode([Channel].self, forKey: .channels)
+    }
+}
+
+/// An RGB light color with components in 0...1.
+public struct LightColor: Hashable, Sendable {
+    public var red: Double
+    public var green: Double
+    public var blue: Double
+
+    public init(red: Double, green: Double, blue: Double) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+    }
+
+    public static let black = LightColor(red: 0, green: 0, blue: 0)
+    public static let white = LightColor(red: 1, green: 1, blue: 1)
+
+    public func scaled(by factor: Double) -> LightColor {
+        LightColor(red: red * factor, green: green * factor, blue: blue * factor)
     }
 }
 
@@ -70,6 +121,8 @@ public enum HueError: LocalizedError, Equatable {
     case unexpectedResponse
     case certificateMismatch(expected: String)
     case keychain(OSStatus)
+    case invalidClientKey
+    case streamingHandshakeTimeout
 
     public var errorDescription: String? {
         switch self {
@@ -89,6 +142,10 @@ public enum HueError: LocalizedError, Equatable {
             "The device's certificate doesn't belong to bridge \(expected)."
         case .keychain(let status):
             "Keychain error \(status): \(SecCopyErrorMessageString(status, nil) as String? ?? "unknown")"
+        case .invalidClientKey:
+            "The stored client key is malformed. Forget the bridge and pair again."
+        case .streamingHandshakeTimeout:
+            "The bridge didn't accept the streaming connection in time."
         }
     }
 }

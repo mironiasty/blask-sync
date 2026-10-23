@@ -2,7 +2,8 @@ import HueKit
 import SwiftUI
 
 struct MenuView: View {
-    @Bindable var model: AppModel
+    let model: AppModel
+    @State private var manualHost = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -24,7 +25,7 @@ struct MenuView: View {
             }
 
             Divider()
-            Button("Quit Blask Sync") { NSApplication.shared.terminate(nil) }
+            Button("Quit Blask Sync") { Task { await model.quit() } }
                 .keyboardShortcut("q")
         }
         .padding()
@@ -59,17 +60,19 @@ struct MenuView: View {
             }
 
             HStack {
-                TextField("Bridge IP address", text: $model.manualHost)
+                TextField("Bridge IP address", text: $manualHost)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit(addManual)
                 Button("Add", action: addManual)
-                    .disabled(model.manualHost.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(manualHost.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
     }
 
     private func addManual() {
-        Task { await model.addManualBridge() }
+        let host = manualHost
+        manualHost = ""
+        Task { await model.addBridge(host: host) }
     }
 }
 
@@ -95,6 +98,7 @@ private struct LinkButtonView: View {
 private struct PairedView: View {
     let model: AppModel
     let credentials: BridgeCredentials
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -121,11 +125,18 @@ private struct PairedView: View {
             }
             ForEach(model.areas) { area in
                 HStack {
-                    Text(area.name)
+                    VStack(alignment: .leading) {
+                        Text(area.name)
+                        Text("\(area.configurationType) · \(area.channels.count) channels")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     Spacer()
-                    Text("\(area.configurationType) · \(area.channelCount) ch")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Button("Control…") {
+                        model.openLightControl(for: area)
+                        openWindow(id: LightControlView.windowId)
+                        NSApp.activate()
+                    }
                 }
             }
 

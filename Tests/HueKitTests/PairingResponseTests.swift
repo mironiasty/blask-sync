@@ -38,6 +38,7 @@ struct PairingResponseTests {
         let area = try JSONDecoder().decode(EntertainmentArea.self, from: Data(json.utf8))
         #expect(area.name == "Desk")
         #expect(area.configurationType == "screen")
-        #expect(area.channelCount == 2)
+        #expect(area.channels.map(\.id) == [0, 1])
+        #expect(area.channels[1].position.x == 1)
     }
 }

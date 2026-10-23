@@ -3,14 +3,18 @@ import SwiftUI
 @main
 struct BlaskSyncApp: App {
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
-    // Not @State: the Command Line Tools lack the SwiftUI macro plugin. The App value is created once anyway.
-    private let model = AppModel()
+    @State private var model = AppModel()
 
     var body: some Scene {
         MenuBarExtra("Blask Sync", systemImage: "lightbulb.led") {
             MenuView(model: model)
         }
         .menuBarExtraStyle(.window)
+
+        Window("Light Control", id: LightControlView.windowId) {
+            LightControlView(model: model)
+        }
+        .windowResizability(.contentMinSize)
     }
 }
 

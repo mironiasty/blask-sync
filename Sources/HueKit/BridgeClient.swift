@@ -102,6 +102,40 @@ public final class BridgeClient: Sendable {
         try await resources("entertainment_configuration", applicationKey: applicationKey)
     }
 
+    /// Maps each `entertainment` service ID to the name of the light (device) that owns it.
+    public func entertainmentServiceNames(applicationKey: String) async throws -> [String: String] {
+        struct Service: Decodable {
+            struct Owner: Decodable { let rid: String }
+            let id: String
+            let owner: Owner
+        }
+        struct Device: Decodable {
+            struct Metadata: Decodable { let name: String }
+            let id: String
+            let metadata: Metadata
+        }
+        async let services: [Service] = resources("entertainment", applicationKey: applicationKey)
+        async let devices: [Device] = resources("device", applicationKey: applicationKey)
+
+        let deviceNames = Dictionary(try await devices.map { ($0.id, $0.metadata.name) }, uniquingKeysWith: { a, _ in a })
+        return Dictionary(try await services.compactMap { service in
+            deviceNames[service.owner.rid].map { (service.id, $0) }
+        }, uniquingKeysWith: { a, _ in a })
+    }
+
+    /// Claims (`active: true`) or releases an entertainment area for streaming.
+    /// The bridge only accepts the DTLS connection after a successful start.
+    public func setStreaming(areaId: String, active: Bool, applicationKey: String) async throws {
+        let body = try JSONSerialization.data(withJSONObject: ["action": active ? "start" : "stop"])
+        let data = try await send("PUT", "/clip/v2/resource/entertainment_configuration/\(areaId)", body: body, applicationKey: applicationKey)
+        let envelope = try JSONDecoder().decode(ResourceEnvelope<ResourceIdentifier>.self, from: data)
+        if let first = envelope.errors.first {
+            throw HueError.bridge(type: 0, description: first.description)
+        }
+    }
+
+    private struct ResourceIdentifier: Decodable { let rid: String }
+
     private func resources<T: Decodable>(_ type: String, applicationKey: String) async throws -> [T] {
         let data = try await send("GET", "/clip/v2/resource/\(type)", applicationKey: applicationKey)
         let envelope = try JSONDecoder().decode(ResourceEnvelope<T>.self, from: data)
@@ -136,7 +170,13 @@ public final class BridgeClient: Sendable {
         switch http.statusCode {
         case 200..<300: return data
         case 401, 403: throw HueError.unauthorized
-        default: throw HueError.http(status: http.statusCode)
+        default:
+            // CLIP v2 explains failures (e.g. "area already streaming") in the body.
+            if let envelope = try? JSONDecoder().decode(ResourceEnvelope<ResourceIdentifier>.self, from: data),
+               let first = envelope.errors.first {
+                throw HueError.bridge(type: http.statusCode, description: first.description)
+            }
+            throw HueError.http(status: http.statusCode)
         }
     }
 }

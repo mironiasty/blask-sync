@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import HueKit
 import Observation
 
@@ -15,9 +15,9 @@ final class AppModel {
     private(set) var pairing: PairingState = .idle
     private(set) var credentials: BridgeCredentials?
     private(set) var areas: [EntertainmentArea] = []
+    /// The area open in the Light Control window.
+    private(set) var lightControl: LightControl?
     var errorMessage: String?
-    /// Draft text of the "Bridge IP address" field.
-    var manualHost = ""
 
     private let store = CredentialStore()
     private var pairingTask: Task<Void, Never>?
@@ -57,10 +57,9 @@ final class AppModel {
         }
     }
 
-    func addManualBridge() async {
-        let host = manualHost.trimmingCharacters(in: .whitespacesAndNewlines)
+    func addBridge(host: String) async {
+        let host = host.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !host.isEmpty else { return }
-        manualHost = ""
         errorMessage = nil
         do {
             let bridge = try await BridgeDiscovery.probe(host: host)
@@ -119,7 +118,27 @@ final class AppModel {
         }
         credentials = nil
         areas = []
-        Task { await discover() }
+        let control = lightControl
+        lightControl = nil
+        Task {
+            await control?.stop()
+            await discover()
+        }
+    }
+
+    // MARK: Light control
+
+    func openLightControl(for area: EntertainmentArea) {
+        guard let credentials, lightControl?.area.id != area.id else { return }
+        let previous = lightControl
+        lightControl = LightControl(area: area, credentials: credentials)
+        Task { await previous?.stop() }
+    }
+
+    /// Releases the streaming session before quitting; otherwise the bridge holds the lights for ~10 s.
+    func quit() async {
+        await lightControl?.stop()
+        NSApplication.shared.terminate(nil)
     }
 
     // MARK: Paired bridge
