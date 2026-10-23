@@ -1,0 +1,159 @@
+import Foundation
+import HueKit
+import Observation
+
+@MainActor
+@Observable
+final class AppModel {
+    enum PairingState: Equatable {
+        case idle
+        case waitingForLinkButton(bridgeId: String, deadline: Date)
+    }
+
+    private(set) var bridges: [DiscoveredBridge] = []
+    private(set) var isDiscovering = false
+    private(set) var pairing: PairingState = .idle
+    private(set) var credentials: BridgeCredentials?
+    private(set) var areas: [EntertainmentArea] = []
+    var errorMessage: String?
+    /// Draft text of the "Bridge IP address" field.
+    var manualHost = ""
+
+    private let store = CredentialStore()
+    private var pairingTask: Task<Void, Never>?
+    private static let pairingTimeout = 30
+
+    /// `app#device`; the bridge allows at most 40 characters.
+    private static let deviceType: String = {
+        let device = ProcessInfo.processInfo.hostName.replacingOccurrences(of: ".local", with: "")
+        return "blask-sync#\(device.prefix(30))"
+    }()
+
+    init() {
+        do {
+            credentials = try store.load()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        Task {
+            if credentials != nil {
+                await refreshAreas()
+            } else {
+                await discover()
+            }
+        }
+    }
+
+    // MARK: Discovery
+
+    func discover() async {
+        guard !isDiscovering else { return }
+        isDiscovering = true
+        defer { isDiscovering = false }
+        errorMessage = nil
+        bridges = await BridgeDiscovery.discover()
+        if bridges.isEmpty {
+            errorMessage = "No bridges found. Check that this Mac is on the same network, or enter the bridge's IP."
+        }
+    }
+
+    func addManualBridge() async {
+        let host = manualHost.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !host.isEmpty else { return }
+        manualHost = ""
+        errorMessage = nil
+        do {
+            let bridge = try await BridgeDiscovery.probe(host: host)
+            bridges.removeAll { $0.id == bridge.id }
+            bridges.append(bridge)
+        } catch {
+            errorMessage = "No Hue Bridge at \(host): \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: Pairing
+
+    func pair(with bridge: DiscoveredBridge) {
+        pairingTask?.cancel()
+        errorMessage = nil
+        pairing = .waitingForLinkButton(
+            bridgeId: bridge.id,
+            deadline: .now.addingTimeInterval(TimeInterval(Self.pairingTimeout))
+        )
+        pairingTask = Task {
+            do {
+                let client = BridgeClient(host: bridge.host, bridgeId: bridge.id)
+                let keys = try await client.pair(deviceType: Self.deviceType, timeout: .seconds(Self.pairingTimeout))
+                let credentials = BridgeCredentials(
+                    bridgeId: bridge.id,
+                    host: bridge.host,
+                    name: bridge.name,
+                    applicationKey: keys.applicationKey,
+                    clientKey: keys.clientKey
+                )
+                try store.save(credentials)
+                self.credentials = credentials
+                pairing = .idle
+                await refreshAreas()
+            } catch {
+                // A cancelled task has already been superseded; leave its state alone.
+                guard !Task.isCancelled else { return }
+                pairing = .idle
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func cancelPairing() {
+        pairingTask?.cancel()
+        pairingTask = nil
+        pairing = .idle
+    }
+
+    func forgetBridge() {
+        do {
+            try store.delete()
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        credentials = nil
+        areas = []
+        Task { await discover() }
+    }
+
+    // MARK: Paired bridge
+
+    func refreshAreas() async {
+        guard let credentials else { return }
+        errorMessage = nil
+        do {
+            areas = try await BridgeClient(credentials: credentials).entertainmentAreas(applicationKey: credentials.applicationKey)
+        } catch HueError.unauthorized {
+            errorMessage = HueError.unauthorized.localizedDescription
+        } catch {
+            // DHCP may have given the bridge a new address; look it up by ID and retry once.
+            guard let moved = await relocate(credentials) else {
+                errorMessage = error.localizedDescription
+                return
+            }
+            do {
+                areas = try await BridgeClient(credentials: moved).entertainmentAreas(applicationKey: moved.applicationKey)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func relocate(_ credentials: BridgeCredentials) async -> BridgeCredentials? {
+        let found = await BridgeDiscovery.discover()
+        guard let bridge = found.first(where: { $0.id == credentials.bridgeId }), bridge.host != credentials.host else {
+            return nil
+        }
+        var moved = credentials
+        moved.host = bridge.host
+        try? store.save(moved)
+        self.credentials = moved
+        return moved
+    }
+}
