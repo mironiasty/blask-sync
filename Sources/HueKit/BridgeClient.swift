@@ -149,6 +149,31 @@ public final class BridgeClient: Sendable {
         return result
     }
 
+    /// Switches lights on or off through the regular API (they stay that way, unlike streamed colors).
+    public func setPower(_ on: Bool, lightIds: [String], applicationKey: String) async throws {
+        let body = try JSONSerialization.data(withJSONObject: ["on": ["on": on]])
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for id in lightIds {
+                group.addTask {
+                    _ = try await self.send("PUT", "/clip/v2/resource/light/\(id)", body: body, applicationKey: applicationKey)
+                }
+            }
+            try await group.waitForAll()
+        }
+    }
+
+    /// Whether any of the given lights is switched on.
+    public func anyLightOn(_ lightIds: [String], applicationKey: String) async throws -> Bool {
+        struct Light: Decodable {
+            struct Power: Decodable { let on: Bool }
+            let id: String
+            let on: Power
+        }
+        let ids = Set(lightIds)
+        let lights: [Light] = try await resources("light", applicationKey: applicationKey)
+        return lights.contains { ids.contains($0.id) && $0.on.on }
+    }
+
     /// Claims (`active: true`) or releases an entertainment area for streaming.
     /// The bridge only accepts the DTLS connection after a successful start.
     public func setStreaming(areaId: String, active: Bool, applicationKey: String) async throws {

@@ -42,6 +42,8 @@ public struct EntertainmentArea: Identifiable, Hashable, Sendable, Decodable {
     /// `active` while some app is streaming to it, otherwise `inactive`.
     public let status: String
     public let channels: [Channel]
+    /// IDs of the `light` resources in the area, for regular (non-streaming) control such as power.
+    public let lightIds: [String]
 
     /// One independently colorable zone. A plain bulb is one channel; a gradient strip may be several.
     public struct Channel: Identifiable, Hashable, Sendable, Decodable {
@@ -107,9 +109,11 @@ public struct EntertainmentArea: Identifiable, Hashable, Sendable, Decodable {
     }
 
     private struct Metadata: Decodable { let name: String }
+    private struct LightService: Decodable { let rid: String }
 
     private enum CodingKeys: String, CodingKey {
         case id, metadata, status, channels
+        case lightServices = "light_services"
         case configurationType = "configuration_type"
     }
 
@@ -120,6 +124,7 @@ public struct EntertainmentArea: Identifiable, Hashable, Sendable, Decodable {
         configurationType = try c.decode(String.self, forKey: .configurationType)
         status = try c.decode(String.self, forKey: .status)
         channels = try c.decode([Channel].self, forKey: .channels)
+        lightIds = try c.decodeIfPresent([LightService].self, forKey: .lightServices)?.map(\.rid) ?? []
     }
 }
 

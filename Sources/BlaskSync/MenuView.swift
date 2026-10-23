@@ -88,6 +88,16 @@ struct MenuView: View {
 
         SyncButton(control: control, large: true)
 
+        Button {
+            Task { await control.setPower(control.lightsOn == false) }
+        } label: {
+            Label(control.lightsOn == false ? "Turn Lights On" : "Turn Lights Off", systemImage: "power")
+                .frame(maxWidth: .infinity)
+        }
+        .controlSize(.large)
+        .disabled(control.area.lightIds.isEmpty)
+        .task { await control.refreshPower() }
+
         if control.syncSource == .screen {
             CaptureStatusBanner(control: control, compact: true)
         } else if let error = control.musicError {

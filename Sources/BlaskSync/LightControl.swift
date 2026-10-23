@@ -56,6 +56,8 @@ final class LightControl {
         didSet { routeOutput() }
     }
     var errorMessage: String?
+    /// Whether any light in the area is switched on (regular power, not streaming); nil until known.
+    private(set) var lightsOn: Bool?
 
     // MARK: Screen sync state
 
@@ -261,6 +263,30 @@ final class LightControl {
         await start()
     }
 
+    // MARK: Power
+
+    func refreshPower() async {
+        guard !area.lightIds.isEmpty else { return }
+        lightsOn = try? await BridgeClient(credentials: credentials).anyLightOn(area.lightIds, applicationKey: credentials.applicationKey)
+    }
+
+    /// Really switches the area's lights on or off. Turning off first stops sync, Manual Control and
+    /// identifying, since streaming would otherwise keep them lit.
+    func setPower(_ on: Bool) async {
+        errorMessage = nil
+        if !on, state != .stopped {
+            await stop()
+            // Give the bridge a moment to restore the lights' pre-stream state, so ours wins.
+            try? await Task.sleep(for: .milliseconds(400))
+        }
+        do {
+            try await BridgeClient(credentials: credentials).setPower(on, lightIds: area.lightIds, applicationKey: credentials.applicationKey)
+            lightsOn = on
+        } catch {
+            errorMessage = "Couldn't turn the lights \(on ? "on" : "off"): \(error.localizedDescription)"
+        }
+    }
+
     /// Lights only `channel`, in white with the others dark, so it can be found in the room; nil ends it.
     /// When nothing is streaming, starts a stream just for this (without capturing the screen) and
     /// releases the lights again afterwards.
@@ -419,6 +445,7 @@ final class LightControl {
             }
             self.stream = stream
             state = .streaming
+            lightsOn = true // the bridge powers lights up for streaming
             routeOutput()
             updateActivity()
             updateEngines()
@@ -444,6 +471,11 @@ final class LightControl {
         await stream.stop()
         state = .stopped
         updateEngines()
+        // The bridge restores each light's previous power state after streaming.
+        Task {
+            try? await Task.sleep(for: .seconds(1))
+            await refreshPower()
+        }
     }
 
     private func streamDropped(_ error: Error) {

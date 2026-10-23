@@ -45,7 +45,8 @@ certificate, install Apple's [WWDR G3 intermediate](https://www.apple.com/certif
 ## Using it
 
 - **Menu bar.** If no bridge is paired, **Pair Bridge…** opens Settings. Once paired, the panel shows the
-  default area's status, a **Screen / Music / Manual** choice and **Start Sync / Stop Sync**. Picking Screen or Music
+  default area's status, a **Screen / Music / Manual** choice, **Start Sync / Stop Sync** and **Turn Lights Off / On**
+  (really switches the area's lights, stopping any sync first). Picking Screen or Music
   while in Manual hands the lights straight back to that sync. The icon (a monitor with a
   sparkle) fills in while the lights are driven.
 - **Settings (⌘,)**
