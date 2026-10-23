@@ -74,7 +74,7 @@ struct MenuView: View {
 
         Picker("Sync with", selection: Binding(get: { control.syncSource }, set: { control.syncSource = $0 })) {
             Label("Screen", systemImage: "display").tag(LightControl.SyncSource.screen)
-            Label("Music", systemImage: "music.note").tag(LightControl.SyncSource.music)
+            Label("Music", systemImage: "hifispeaker.fill").tag(LightControl.SyncSource.music)
         }
         .pickerStyle(.segmented)
         .labelsHidden()

@@ -10,11 +10,11 @@ struct MusicSettings: View {
         Group {
             if let control = model.lightControl {
                 MusicSettingsPane(control: control)
-                    .id(control.area.id)
+                    .id("music-\(control.area.id)")
             } else {
                 ContentUnavailableView(
                     "No Area Selected",
-                    systemImage: "music.note",
+                    systemImage: "hifispeaker.fill",
                     description: Text("Pair a bridge and choose an entertainment area in General.")
                 )
             }

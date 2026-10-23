@@ -1,18 +1,28 @@
 import HueKit
 import SwiftUI
 
-/// The Settings window (⌘,): bridge and area in General, screen mapping in Screen.
+/// The Settings window (⌘,): bridge and area in General, screen mapping in Screen, music sync in Music.
 struct SettingsView: View {
     let model: AppModel
+    @AppStorage("settingsTab") private var selection = Tab.general
+
+    enum Tab: String {
+        case general, screen, music
+    }
 
     var body: some View {
-        TabView {
+        // Explicit tags: without them SwiftUI infers tab identity from the content, and two tabs whose
+        // content shares an `.id` showed the same toolbar label.
+        TabView(selection: $selection) {
             GeneralSettings(model: model)
                 .tabItem { Label("General", systemImage: "gearshape") }
+                .tag(Tab.general)
             ScreenSettings(model: model)
                 .tabItem { Label("Screen", systemImage: "display") }
+                .tag(Tab.screen)
             MusicSettings(model: model)
-                .tabItem { Label("Music", systemImage: "music.note") }
+                .tabItem { Label("Music", systemImage: "hifispeaker.fill") }
+                .tag(Tab.music)
         }
     }
 }
@@ -175,7 +185,7 @@ private struct ScreenSettings: View {
         Group {
             if let control = model.lightControl {
                 ScreenSettingsPane(control: control)
-                    .id(control.area.id)
+                    .id("screen-\(control.area.id)")
             } else {
                 ContentUnavailableView(
                     "No Area Selected",
