@@ -182,7 +182,7 @@ private struct ScreenSettings: View {
                 )
             }
         }
-        .frame(minWidth: 780, minHeight: 580)
+        .frame(minWidth: 920, minHeight: 640)
     }
 }
 

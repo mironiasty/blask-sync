@@ -178,6 +178,10 @@ final class LightControl {
             channelDescriptions = Dictionary(uniqueKeysWithValues: area.channels.map {
                 ($0.id, ChannelDescription(channel: $0, lights: lights))
             })
+            // Never customized: now that lamps are known, place them beside the screen where they belong.
+            if mappingStore.load(areaId: area.id) == nil {
+                resetMapping()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -200,7 +204,18 @@ final class LightControl {
     }
 
     func resetMapping() {
-        mapping = .defaults(for: area.channels)
+        mapping = .defaults(for: area.channels, lampChannels: Set(lampChannels.filter(isLamp)))
+    }
+
+    /// Whether the channel is a standalone lamp (as opposed to a strip segment). False until lights load.
+    func isLamp(_ channelId: UInt8) -> Bool {
+        guard let description = channelDescriptions[channelId] else { return false }
+        return description.strip == nil
+    }
+
+    /// Lamps may be placed beside the screen; strip segments stay on it.
+    func placementBounds(for channelId: UInt8) -> ScreenRegion.Bounds {
+        isLamp(channelId) ? .surroundings : .screen
     }
 
     func setColor(_ color: LightColor, channel: UInt8) {
