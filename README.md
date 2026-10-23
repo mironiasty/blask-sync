@@ -1,4 +1,11 @@
-# Blask Sync (macOS)
+<p align="center">
+  <img src="docs/icon.png" width="160" alt="Blask Sync icon: a monitor glowing with a rainbow halo and a sparkle">
+</p>
+
+<h1 align="center">Blask Sync</h1>
+
+<p align="center">Philips Hue sync for your Mac's screen and music</p>
+
 
 A menu bar app that syncs Philips Hue lights with your screen, like an ambilight, or with the music your
 Mac plays: strips behind the monitor follow its edges or ripple with the beat, and lamps around it pick up the
@@ -174,4 +181,4 @@ full path):
 
 `scripts/make-icon.swift` draws the icon (a monitor with a spectrum halo and a sparkle) with CoreGraphics.
 `scripts/make-icns.sh` renders it at every macOS size into `Resources/AppIcon.icns`, which `bundle.sh` copies
-into the app. The menu bar icon is drawn in code in `Sources/BlaskSync/MenuBarIcon.swift`.
+into the app, and writes `docs/icon.png` for this README. The menu bar icon is drawn in code in `Sources/BlaskSync/MenuBarIcon.swift`.
