@@ -11,7 +11,7 @@ struct BlaskSyncApp: App {
             MenuView(model: model)
         } label: {
             // Filled while the lights are being driven.
-            Image(systemName: model.lightControl?.isStreaming == true ? "lightbulb.led.fill" : "lightbulb.led")
+            Image(nsImage: MenuBarIcon.image(active: model.lightControl?.isStreaming == true))
         }
         .menuBarExtraStyle(.window)
 

@@ -40,7 +40,7 @@ recording and audio permissions come in, because macOS ties those to a bundle ID
 ## Using it
 
 - **Menu bar:** if no bridge is paired, **Pair Bridge…** opens Settings. Once paired, the panel shows the
-  default area with **Start Sync / Stop Sync** (screen sync) and **Manual Control…**. The icon fills in
+  default area with **Start Sync / Stop Sync** (screen sync) and **Manual Control…**. The icon (a monitor with a sparkle) fills in
   while the lights are driven.
 - **Settings (⌘,):**
   - **General:** bridge discovery, pairing and forgetting, and the default entertainment area.
