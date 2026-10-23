@@ -88,3 +88,45 @@ public struct ColorSmoother: Sendable {
         return next
     }
 }
+
+/// Post-processing for sampled screen colors.
+public struct ColorAdjustment: Equatable, Codable, Sendable {
+    /// 0 leaves colors as sampled; 1 triples their saturation (capped at fully saturated).
+    public var saturationBoost: Double
+    /// Brightness floor in 0...1: dark scenes glow at this level instead of going off.
+    public var minimumBrightness: Double
+
+    public init(saturationBoost: Double = 0, minimumBrightness: Double = 0) {
+        self.saturationBoost = saturationBoost
+        self.minimumBrightness = minimumBrightness
+    }
+
+    public static let none = ColorAdjustment()
+
+    /// Boosts saturation keeping hue and brightness, then lifts brightness to the floor.
+    public func apply(_ color: LightColor) -> LightColor {
+        var red = color.red, green = color.green, blue = color.blue
+        let value = max(red, green, blue)
+        let minimum = min(red, green, blue)
+
+        if saturationBoost > 0, value > 0, value > minimum {
+            // Scale each channel's distance below the brightest one; that changes saturation only.
+            let saturation = (value - minimum) / value
+            let boosted = min(1, saturation * (1 + 2 * saturationBoost))
+            let scale = boosted / saturation
+            red = max(0, value - (value - red) * scale)
+            green = max(0, value - (value - green) * scale)
+            blue = max(0, value - (value - blue) * scale)
+        }
+
+        if minimumBrightness > 0 {
+            let lifted = minimumBrightness + value * (1 - minimumBrightness)
+            guard value > 0 else { return LightColor(red: lifted, green: lifted, blue: lifted) }
+            let scale = lifted / value
+            red *= scale
+            green *= scale
+            blue *= scale
+        }
+        return LightColor(red: red, green: green, blue: blue)
+    }
+}

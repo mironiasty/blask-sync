@@ -75,6 +75,20 @@ final class LightControl {
             updateEngine()
         }
     }
+    /// Pushes averaged (often grayish) screen colors toward vivid ones. 0...1.
+    var saturationBoost: Double {
+        didSet {
+            UserDefaults.standard.set(saturationBoost, forKey: Keys.saturationBoost)
+            updateEngine()
+        }
+    }
+    /// Brightness floor so dark scenes glow faintly instead of going off. 0...1.
+    var minimumBrightness: Double {
+        didSet {
+            UserDefaults.standard.set(minimumBrightness, forKey: Keys.minimumBrightness)
+            updateEngine()
+        }
+    }
     private(set) var captureState: CaptureState = .idle
     /// Latest captured frame, refreshed ~10×/s while capturing.
     private(set) var preview: CGImage?
@@ -102,6 +116,8 @@ final class LightControl {
     private enum Keys {
         static let displayID = "sync.displayID"
         static let intensity = "sync.intensity"
+        static let saturationBoost = "sync.saturationBoost"
+        static let minimumBrightness = "sync.minimumBrightness"
     }
 
     init(area: EntertainmentArea, credentials: BridgeCredentials) {
@@ -112,6 +128,8 @@ final class LightControl {
 
         let defaults = UserDefaults.standard
         intensity = defaults.string(forKey: Keys.intensity).flatMap(SyncIntensity.init) ?? .moderate
+        saturationBoost = defaults.object(forKey: Keys.saturationBoost) as? Double ?? 0.3
+        minimumBrightness = defaults.object(forKey: Keys.minimumBrightness) as? Double ?? 0
         let savedDisplay = CGDirectDisplayID(defaults.integer(forKey: Keys.displayID))
         selectedDisplayID = DisplayInfo.all().contains { $0.id == savedDisplay } ? savedDisplay : CGMainDisplayID()
     }
@@ -311,7 +329,12 @@ final class LightControl {
     }
 
     private var engineSettings: ScreenSyncEngine.Settings {
-        ScreenSyncEngine.Settings(mapping: mapping, intensity: intensity, brightness: brightness)
+        ScreenSyncEngine.Settings(
+            mapping: mapping,
+            intensity: intensity,
+            brightness: brightness,
+            adjustment: ColorAdjustment(saturationBoost: saturationBoost, minimumBrightness: minimumBrightness)
+        )
     }
 
     private func updateEngine() {

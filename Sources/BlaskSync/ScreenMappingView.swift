@@ -31,6 +31,19 @@ struct ScreenMappingView: View {
                     }
                     .fixedSize()
                 }
+                HStack(spacing: 20) {
+                    LabeledContent("Saturation") {
+                        Slider(value: $control.saturationBoost, in: 0...1)
+                            .frame(width: 140)
+                    }
+                    .help("Makes averaged screen colors more vivid.")
+                    LabeledContent("Minimum brightness") {
+                        Slider(value: $control.minimumBrightness, in: 0...0.3)
+                            .frame(width: 140)
+                    }
+                    .help("Keeps the lights glowing faintly in dark scenes instead of switching off.")
+                    Spacer()
+                }
                 CaptureStatusBanner(control: control)
                 ScreenCanvas(control: control, selection: $selection)
                 HStack {

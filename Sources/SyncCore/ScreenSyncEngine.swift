@@ -13,11 +13,13 @@ public final class ScreenSyncEngine: @unchecked Sendable {
         public var mapping: ScreenMapping
         public var intensity: SyncIntensity
         public var brightness: Double
+        public var adjustment: ColorAdjustment
 
-        public init(mapping: ScreenMapping, intensity: SyncIntensity, brightness: Double) {
+        public init(mapping: ScreenMapping, intensity: SyncIntensity, brightness: Double, adjustment: ColorAdjustment = .none) {
             self.mapping = mapping
             self.intensity = intensity
             self.brightness = brightness
+            self.adjustment = adjustment
         }
     }
 
@@ -43,8 +45,8 @@ public final class ScreenSyncEngine: @unchecked Sendable {
 
     /// Safe to call from any thread; cheap enough for every captured frame.
     public func process(_ frame: Frame) {
-        let mapping = settings.withLock { $0.mapping }
-        let colors = ColorExtractor.averageColors(in: frame, mapping: mapping)
+        let (mapping, adjustment) = settings.withLock { ($0.mapping, $0.adjustment) }
+        let colors = ColorExtractor.averageColors(in: frame, mapping: mapping).mapValues(adjustment.apply)
         target.withLock { $0 = colors }
         if let summary = frameStats.withLock({ $0.record() }) {
             Self.logger.notice("captured \(summary.description, privacy: .public)")

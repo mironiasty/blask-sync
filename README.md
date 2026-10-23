@@ -70,6 +70,8 @@ Configured in **Settings → Screen**, started from the menu bar:
 - **Colors.** `ColorExtractor` averages each region. `ScreenSyncEngine` eases toward those colors at 50 Hz
   with exponential smoothing; the time constant is set by **Intensity** (subtle 0.6 s … extreme 0.04 s).
   The easing continues while the screen is static and no new frames arrive.
+- **Adjustments.** **Saturation** pushes the averaged colors (which drift toward gray) toward vivid ones,
+  keeping hue and brightness. **Minimum brightness** keeps the lights glowing faintly in dark scenes.
 
 The first time, macOS asks for **Screen Recording** permission, and the app has to be relaunched after
 you allow it. `scripts/bundle.sh` signs with an "Apple Development" certificate when one exists.
