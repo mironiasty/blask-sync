@@ -34,6 +34,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // The bundled app sets LSUIElement; this covers `swift run`, which has no Info.plist.
         NSApp.setActivationPolicy(.accessory)
+
+        // Show in the Dock and ⌘-Tab while Settings or Manual Control is open, so a window that went
+        // behind others can be brought back; go back to menu-bar-only once they're closed.
+        let center = NotificationCenter.default
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didBecomeMainNotification] {
+            center.addObserver(forName: name, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { self.updateActivationPolicy(closing: nil) }
+            }
+        }
+        center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { notification in
+            let closing = notification.object as? NSWindow
+            MainActor.assumeIsolated { self.updateActivationPolicy(closing: closing) }
+        }
+    }
+
+    /// Regular app while a titled window (Settings, Manual Control) is open; menu-bar-only otherwise.
+    /// The menu bar panel is an NSPanel and doesn't count.
+    private func updateActivationPolicy(closing: NSWindow?) {
+        let hasAppWindow = NSApp.windows.contains { window in
+            window !== closing && window.isVisible && window.styleMask.contains(.titled) && !(window is NSPanel)
+        }
+        let policy: NSApplication.ActivationPolicy = hasAppWindow ? .regular : .accessory
+        guard NSApp.activationPolicy() != policy else { return }
+        NSApp.setActivationPolicy(policy)
     }
 
     /// Releases the lights before any graceful quit (menu, logout, shutdown, relaunch). Without the
