@@ -90,6 +90,17 @@ final class LightControl {
         }
     }
     private(set) var captureState: CaptureState = .idle
+    /// Pause capture while a player of DRM-protected video is in front: macOS blanks protected video
+    /// on screen while the display is being captured, so movies wouldn't play at all.
+    var pauseForProtectedApps: Bool {
+        didSet {
+            UserDefaults.standard.set(pauseForProtectedApps, forKey: Keys.pauseForProtectedApps)
+            updateProtectedPause()
+            if capture != nil { Task { await restartCapture() } } // refresh the excluded apps
+        }
+    }
+    /// Name of the protected-video app capture is paused for, e.g. "TV".
+    private(set) var pausedForApp: String?
     /// Latest captured frame, refreshed ~10×/s while capturing.
     private(set) var preview: CGImage?
     /// Latest colors sent in screen mode (brightness applied), refreshed ~10×/s.
@@ -110,6 +121,19 @@ final class LightControl {
     /// Read on the engine's queue, so it lives outside the main actor.
     private let screenSink = OSAllocatedUnfairLock<EntertainmentStream?>(initialState: nil)
 
+    private static let logger = Logger(subsystem: "local.blasksync", category: "capture")
+
+    /// Apps whose video is DRM-protected: the Apple TV app.
+    static let protectedBundleIDs: Set<String> = ["com.apple.TV"]
+    /// What the lights ease to while capture is paused: a soft warm glow.
+    private static let pausedGlow = LightColor(red: 1, green: 0.62, blue: 0.32).scaled(by: 0.3)
+
+    private var frontmostApp: (bundleID: String?, name: String?) = (nil, nil)
+    private var activationObserver: NSObjectProtocol?
+    /// Whether the SCStream is actually running; it pauses while `pausedForApp` is set.
+    private var captureStreamRunning = false
+    private var reconcilingCapture = false
+
     /// Whether screen sync was running when Manual Control opened, to resume it afterwards.
     private var resumeScreenAfterManual = false
 
@@ -118,6 +142,7 @@ final class LightControl {
         static let intensity = "sync.intensity"
         static let saturationBoost = "sync.saturationBoost"
         static let minimumBrightness = "sync.minimumBrightness"
+        static let pauseForProtectedApps = "sync.pauseForProtectedApps"
     }
 
     init(area: EntertainmentArea, credentials: BridgeCredentials) {
@@ -130,12 +155,27 @@ final class LightControl {
         intensity = defaults.string(forKey: Keys.intensity).flatMap(SyncIntensity.init) ?? .moderate
         saturationBoost = defaults.object(forKey: Keys.saturationBoost) as? Double ?? 0.3
         minimumBrightness = defaults.object(forKey: Keys.minimumBrightness) as? Double ?? 0
+        pauseForProtectedApps = defaults.object(forKey: Keys.pauseForProtectedApps) as? Bool ?? true
         let savedDisplay = CGDirectDisplayID(defaults.integer(forKey: Keys.displayID))
         selectedDisplayID = DisplayInfo.all().contains { $0.id == savedDisplay } ? savedDisplay : CGMainDisplayID()
+
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+        ) { [weak self] notification in
+            let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            let (bundleID, name) = (app?.bundleIdentifier, app?.localizedName)
+            MainActor.assumeIsolated { self?.frontmostAppChanged(bundleID: bundleID, name: name) }
+        }
+        let front = NSWorkspace.shared.frontmostApplication
+        frontmostAppChanged(bundleID: front?.bundleIdentifier, name: front?.localizedName)
     }
 
     /// Releases the lights and stops capturing, e.g. before quitting or switching areas.
     func shutdown() async {
+        if let activationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(activationObserver)
+            self.activationObserver = nil
+        }
         previewing = false
         await stop()
         await stopCapture()
@@ -405,28 +445,79 @@ final class LightControl {
         self.capture = capture
         updateActivity()
         engine.start()
-        do {
-            try await capture.start(displayID: selectedDisplayID)
-            // Stopped or restarted while starting: this capture is orphaned.
-            guard self.capture === capture else {
-                await capture.stop()
-                return
-            }
-            // Still current, but no longer needed.
-            guard captureNeeded else {
-                await stopCapture()
-                return
-            }
-            captureState = .capturing
-        } catch {
+        if pausedForApp != nil { engine.hold(pausedColors) }
+        await reconcileCaptureStream()
+        // No longer needed by the time it started.
+        if self.capture === capture, !captureNeeded {
             await stopCapture()
-            captureState = ScreenCapture.hasPermission ? .failed(error.localizedDescription) : .needsPermission
         }
+    }
+
+    /// Starts or stops the SCStream until it matches whether it should run (a capture session exists
+    /// and no protected-video app is in front). Re-checks after every await, so a pause that arrives
+    /// while the stream is starting still stops it.
+    private func reconcileCaptureStream() async {
+        guard !reconcilingCapture else { return }
+        reconcilingCapture = true
+        defer { reconcilingCapture = false }
+
+        while let capture {
+            let shouldRun = pausedForApp == nil
+            guard shouldRun != captureStreamRunning else { return }
+            if shouldRun {
+                do {
+                    try await capture.start(displayID: selectedDisplayID, excludedBundleIDs: excludedBundleIDs)
+                } catch {
+                    await stopCapture()
+                    captureState = ScreenCapture.hasPermission ? .failed(error.localizedDescription) : .needsPermission
+                    return
+                }
+                // Stopped or restarted while starting: this capture is orphaned.
+                guard self.capture === capture else {
+                    await capture.stop()
+                    continue
+                }
+                captureStreamRunning = true
+                captureState = .capturing
+            } else {
+                await capture.stop()
+                captureStreamRunning = false
+            }
+        }
+    }
+
+    private var excludedBundleIDs: Set<String> {
+        pauseForProtectedApps ? Self.protectedBundleIDs : []
+    }
+
+    private var pausedColors: [UInt8: LightColor] {
+        Dictionary(uniqueKeysWithValues: area.channels.map { ($0.id, Self.pausedGlow) })
+    }
+
+    private func frontmostAppChanged(bundleID: String?, name: String?) {
+        frontmostApp = (bundleID, name)
+        updateProtectedPause()
+    }
+
+    private func updateProtectedPause() {
+        let protectedInFront = pauseForProtectedApps && frontmostApp.bundleID.map(Self.protectedBundleIDs.contains) == true
+        let paused = protectedInFront ? (frontmostApp.name ?? "Apple TV") : nil
+        guard paused != pausedForApp else { return }
+        pausedForApp = paused
+        if let paused {
+            Self.logger.notice("pausing capture while \(paused, privacy: .public) is in front")
+        } else {
+            Self.logger.notice("resuming capture")
+        }
+        engine?.hold(paused == nil ? nil : pausedColors)
+        if paused != nil { preview = nil }
+        Task { await reconcileCaptureStream() }
     }
 
     private func stopCapture() async {
         let capture = self.capture
         self.capture = nil
+        captureStreamRunning = false
         updateActivity()
         engine?.stop()
         engine = nil

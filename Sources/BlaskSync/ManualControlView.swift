@@ -68,6 +68,7 @@ struct SyncStatusLabel: View {
 
     private var color: Color {
         switch control.state {
+        case .streaming where control.mode == .screen && control.pausedForApp != nil: .purple
         case .streaming: control.mode == .screen ? .green : .orange
         case .starting, .stopping: .yellow
         case .stopped: .secondary.opacity(0.5)
@@ -76,6 +77,8 @@ struct SyncStatusLabel: View {
 
     private var text: String {
         switch control.state {
+        case .streaming where control.mode == .screen && control.pausedForApp != nil:
+            "Paused while \(control.pausedForApp ?? "") is in front"
         case .streaming: control.mode == .screen ? "Syncing with screen" : "Manual control"
         case .starting: "Connecting…"
         case .stopping: "Stopping…"

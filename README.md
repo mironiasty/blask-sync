@@ -53,8 +53,12 @@ The sync session belongs to the app, not to a window, so sync keeps running with
 
 - **Capture.** ScreenCaptureKit streams the chosen display at 160 px wide and up to 60 fps
   (`SyncCore/ScreenCapture.swift`). Blask Sync's own windows are left out, so the editor doesn't sample
-  itself. Frames only arrive when the picture changes. DRM-protected video (e.g. Netflix, Apple TV+) is
-  captured as black.
+  itself. Frames only arrive when the picture changes.
+- **Protected video.** While a display is being captured, macOS hides DRM-protected video on the screen
+  itself, so the Apple TV app wouldn't play movies at all. With **Pause for Apple TV app** (on by default),
+  capture stops while the TV app is in front and the lights ease to a soft warm glow; it resumes when you
+  switch away. The TV app is also left out of the capture filter. Lights can't follow protected movies.
+  DRM video in a browser (e.g. Netflix in Safari) has the same limitation.
 - **Mapping.** The canvas shows the screen inside the wall around it. Each channel has a region:
   - **Strip segments** stay on the screen, drawn solid and joined in physical order.
   - **Lamps** (dashed, with their icon) can sit on the screen or on the wall beside it. A lamp beside the

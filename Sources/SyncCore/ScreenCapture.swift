@@ -33,16 +33,19 @@ public final class ScreenCapture: NSObject, SCStreamOutput, SCStreamDelegate, @u
     @discardableResult
     public static func requestPermission() -> Bool { CGRequestScreenCaptureAccess() }
 
-    /// Captures `displayID` at up to 60 fps, leaving out this app's own windows.
-    public func start(displayID: CGDirectDisplayID) async throws {
+    /// Captures `displayID` at up to 60 fps, leaving out this app's own windows and any app in
+    /// `excludedBundleIDs` (e.g. players of DRM-protected video, which macOS blanks while captured).
+    public func start(displayID: CGDirectDisplayID, excludedBundleIDs: Set<String> = []) async throws {
         await stop()
 
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         guard let display = content.displays.first(where: { $0.displayID == displayID }) ?? content.displays.first else {
             throw CaptureError.noDisplay
         }
-        let ownApp = content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }
-        let filter = SCContentFilter(display: display, excludingApplications: ownApp, exceptingWindows: [])
+        let excludedApps = content.applications.filter {
+            $0.processID == ProcessInfo.processInfo.processIdentifier || excludedBundleIDs.contains($0.bundleIdentifier)
+        }
+        let filter = SCContentFilter(display: display, excludingApplications: excludedApps, exceptingWindows: [])
 
         let configuration = SCStreamConfiguration()
         configuration.width = Self.frameWidth

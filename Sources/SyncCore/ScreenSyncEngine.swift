@@ -25,6 +25,8 @@ public final class ScreenSyncEngine: @unchecked Sendable {
 
     private let settings: OSAllocatedUnfairLock<Settings>
     private let target = OSAllocatedUnfairLock(initialState: [UInt8: LightColor]())
+    /// While set, frames are ignored and the lights ease toward these colors instead.
+    private let held = OSAllocatedUnfairLock<[UInt8: LightColor]?>(initialState: nil)
     private let output: @Sendable ([UInt8: LightColor]) -> Void
     private let queue = DispatchQueue(label: "blask.screen-sync", qos: .userInteractive)
     private var smoother = ColorSmoother()
@@ -43,8 +45,15 @@ public final class ScreenSyncEngine: @unchecked Sendable {
         self.settings.withLock { $0 = settings }
     }
 
+    /// Eases toward fixed colors and ignores frames until called with nil, e.g. while capture is paused.
+    public func hold(_ colors: [UInt8: LightColor]?) {
+        held.withLock { $0 = colors }
+        if let colors { target.withLock { $0 = colors } }
+    }
+
     /// Safe to call from any thread; cheap enough for every captured frame.
     public func process(_ frame: Frame) {
+        guard held.withLock({ $0 }) == nil else { return }
         let (mapping, adjustment) = settings.withLock { ($0.mapping, $0.adjustment) }
         let colors = ColorExtractor.averageColors(in: frame, mapping: mapping).mapValues(adjustment.apply)
         target.withLock { $0 = colors }

@@ -339,6 +339,11 @@ private struct Inspector: View {
                                 Text(intensity.rawValue.capitalized).tag(intensity)
                             }
                         }
+                        Toggle("Pause for Apple TV app", isOn: $control.pauseForProtectedApps)
+                        Text("macOS hides protected movies while the screen is captured. With this on, capture pauses while the Apple TV app is in front and the lights glow softly.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(4)
                 }
