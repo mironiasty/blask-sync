@@ -47,6 +47,8 @@ public final class EntertainmentStream: @unchecked Sendable {
     private let colors: OSAllocatedUnfairLock<[UInt8: LightColor]>
     private var connection: NWConnection?
     private var timer: DispatchSourceTimer?
+    private var sendStats = IntervalStats()
+    private static let logger = Logger(subsystem: "local.blasksync", category: "stream")
 
     /// - Parameters:
     ///   - initialColors: Colors sent from the first frame on, keyed by channel ID.
@@ -140,6 +142,9 @@ public final class EntertainmentStream: @unchecked Sendable {
     private func sendFrame() {
         let message = HueStreamMessage.encode(areaId: areaId, colors: colors.withLock { $0 })
         connection?.send(content: message, completion: .idempotent)
+        if let summary = sendStats.record() {
+            Self.logger.notice("sent \(summary.description, privacy: .public)")
+        }
     }
 
     /// DTLS 1.2 with a pre-shared key: identity = application key, key = decoded client key.

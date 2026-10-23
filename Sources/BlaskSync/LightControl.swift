@@ -86,6 +86,8 @@ final class LightControl {
     private var stream: EntertainmentStream?
     private var capture: ScreenCapture?
     private var engine: ScreenSyncEngine?
+    /// Keeps App Nap from throttling the 50 Hz timers while the app works in the background.
+    private var activity: NSObjectProtocol?
     /// Where the screen sync engine sends colors: the stream while it should follow the screen, else nil.
     /// Read on the engine's queue, so it lives outside the main actor.
     private let screenSink = OSAllocatedUnfairLock<EntertainmentStream?>(initialState: nil)
@@ -188,6 +190,7 @@ final class LightControl {
             self.stream = stream
             state = .streaming
             routeOutput()
+            updateActivity()
         } catch {
             state = .stopped
             errorMessage = "Couldn't start streaming: \(error.localizedDescription)"
@@ -202,6 +205,7 @@ final class LightControl {
         }
         self.stream = nil
         routeOutput()
+        updateActivity()
         state = .stopping
         await stream.stop()
         state = .stopped
@@ -211,6 +215,7 @@ final class LightControl {
         guard let stream else { return }
         self.stream = nil
         routeOutput()
+        updateActivity()
         state = .stopped
         errorMessage = "Streaming stopped: \(error.localizedDescription)"
         Task { await stream.stop() }
@@ -231,6 +236,20 @@ final class LightControl {
     private func pushColors() {
         guard !followsScreen else { return }
         stream?.setColors(outputColors)
+    }
+
+    private func updateActivity() {
+        // Debug switch to compare against App Nap: `defaults write local.blasksync.BlaskSync sync.allowAppNap -bool YES`
+        let needed = (stream != nil || capture != nil) && !UserDefaults.standard.bool(forKey: "sync.allowAppNap")
+        if needed, activity == nil {
+            activity = ProcessInfo.processInfo.beginActivity(
+                options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
+                reason: "Streaming colors to Hue lights"
+            )
+        } else if !needed, let activity {
+            ProcessInfo.processInfo.endActivity(activity)
+            self.activity = nil
+        }
     }
 
     private func routeOutput() {
@@ -294,6 +313,7 @@ final class LightControl {
         )
         self.engine = engine
         self.capture = capture
+        updateActivity()
         engine.start()
         do {
             try await capture.start(displayID: selectedDisplayID)
@@ -312,6 +332,7 @@ final class LightControl {
     private func stopCapture() async {
         let capture = self.capture
         self.capture = nil
+        updateActivity()
         engine?.stop()
         engine = nil
         preview = nil

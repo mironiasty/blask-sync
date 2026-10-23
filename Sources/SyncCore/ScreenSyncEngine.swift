@@ -27,6 +27,9 @@ public final class ScreenSyncEngine: @unchecked Sendable {
     private let queue = DispatchQueue(label: "blask.screen-sync", qos: .userInteractive)
     private var smoother = ColorSmoother()
     private var timer: DispatchSourceTimer?
+    private var tickStats = IntervalStats()
+    private let frameStats = OSAllocatedUnfairLock(initialState: IntervalStats())
+    private static let logger = Logger(subsystem: "local.blasksync", category: "screen-sync")
 
     /// - Parameter output: Called on the engine's queue with brightness-scaled colors, 50 times a second.
     public init(settings: Settings, output: @escaping @Sendable ([UInt8: LightColor]) -> Void) {
@@ -43,6 +46,9 @@ public final class ScreenSyncEngine: @unchecked Sendable {
         let mapping = settings.withLock { $0.mapping }
         let colors = ColorExtractor.averageColors(in: frame, mapping: mapping)
         target.withLock { $0 = colors }
+        if let summary = frameStats.withLock({ $0.record() }) {
+            Self.logger.notice("captured \(summary.description, privacy: .public)")
+        }
     }
 
     public func start() {
@@ -75,5 +81,8 @@ public final class ScreenSyncEngine: @unchecked Sendable {
             now: ProcessInfo.processInfo.systemUptime
         )
         output(smoothed.mapValues { $0.scaled(by: settings.brightness) })
+        if let summary = tickStats.record() {
+            Self.logger.notice("ticked \(summary.description, privacy: .public)")
+        }
     }
 }
