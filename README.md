@@ -76,7 +76,9 @@ the app, not to a window, so sync keeps running with all windows closed.
   DRM video in a browser (e.g. Netflix in Safari) has the same limitation.
 - **Mapping.** The canvas shows the monitor (with the live preview) on the wall, lit by your lights: each one
   is a glowing marker that casts its color onto the wall. Drag a light to move it; hover to see the screen
-  area it follows, select it to resize that area.
+  area it follows, select it to resize that area. With **Identify while moving** (on by default), the light you move
+  or select shines white in the room and the others go dark; if sync is off, the lights are taken over just for
+  this, without capturing the screen, and released when you leave the tab.
   - **Strip segments** are numbered dots joined by a glowing LED line, and stay on the screen.
   - **Lamps** are bulbs with their icon and can sit on the screen or on the wall beside it. A lamp beside the
     screen samples the nearest same-size screen area, and blends toward the whole screen's average the

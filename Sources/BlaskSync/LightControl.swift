@@ -180,6 +180,10 @@ final class LightControl {
     private var captureStreamRunning = false
     private var reconcilingCapture = false
 
+    /// True while the stream runs only so `identify` can light a channel: no screen or audio capture,
+    /// and it stops again when identifying ends.
+    private var streamingForIdentify = false
+
     /// Whether screen sync was running when Manual Control opened, to resume it afterwards.
     private var resumeScreenAfterManual = false
 
@@ -248,13 +252,36 @@ final class LightControl {
             return
         }
         mode = syncSource.mode
+        if streamingForIdentify {
+            // Already streaming for identify: keep the stream and make it a real sync session.
+            streamingForIdentify = false
+            updateEngines()
+            return
+        }
         await start()
+    }
+
+    /// Lights only `channel`, in white with the others dark, so it can be found in the room; nil ends it.
+    /// When nothing is streaming, starts a stream just for this (without capturing the screen) and
+    /// releases the lights again afterwards.
+    func identify(_ channel: UInt8?) async {
+        identifiedChannel = channel
+        if channel != nil, state == .stopped {
+            streamingForIdentify = true
+            await start()
+            if state == .stopped { streamingForIdentify = false }
+        } else if channel == nil, streamingForIdentify {
+            streamingForIdentify = false
+            await stop()
+        }
     }
 
     /// Switches to manual colors, streaming if needed. Called when the Manual Control window opens.
     func beginManual() async {
         guard mode != .manual else { return }
-        resumeScreenAfterManual = isStreaming || state == .starting
+        resumeScreenAfterManual = (isStreaming || state == .starting) && !streamingForIdentify
+        streamingForIdentify = false
+        identifiedChannel = nil
         mode = .manual
         if state == .stopped { await start() }
     }
@@ -267,6 +294,10 @@ final class LightControl {
             return
         }
         mode = source.mode
+        if streamingForIdentify {
+            streamingForIdentify = false
+            updateEngines()
+        }
         if state == .stopped { await start() }
     }
 
@@ -399,6 +430,8 @@ final class LightControl {
     }
 
     func stop() async {
+        streamingForIdentify = false
+        identifiedChannel = nil
         guard let stream else {
             // Still connecting: start() sees this and tears the stream down once it's up.
             if state == .starting { state = .stopping }
@@ -469,7 +502,7 @@ final class LightControl {
 
     /// Music analysis runs for the meters, or while streaming follows the music.
     private var musicNeeded: Bool {
-        musicPreviewing || (mode == .music && state != .stopped)
+        musicPreviewing || (mode == .music && state != .stopped && !streamingForIdentify)
     }
 
     private func updateMusic() {
@@ -562,9 +595,9 @@ final class LightControl {
         engine?.update(engineSettings)
     }
 
-    /// Screen capture runs only while streaming follows the screen; Settings doesn't capture.
+    /// Screen capture runs only while streaming follows the screen; Settings and identify don't capture.
     private var captureNeeded: Bool {
-        mode == .screen && state != .stopped
+        mode == .screen && state != .stopped && !streamingForIdentify
     }
 
     private func updateEngines() {

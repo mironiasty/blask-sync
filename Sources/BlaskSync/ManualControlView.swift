@@ -91,7 +91,8 @@ struct SyncStatusLabel: View {
     }
 
     private var color: Color {
-        switch control.state {
+        if control.identifiedChannel != nil, control.state == .streaming { return .yellow }
+        return switch control.state {
         case .streaming where control.mode == .screen && control.pausedForApp != nil: .purple
         case .streaming:
             switch control.mode {
@@ -105,7 +106,8 @@ struct SyncStatusLabel: View {
     }
 
     private var text: String {
-        switch control.state {
+        if control.identifiedChannel != nil, control.state == .streaming { return "Identifying lights" }
+        return switch control.state {
         case .streaming where control.mode == .screen && control.pausedForApp != nil:
             "Paused while \(control.pausedForApp ?? "") is in front"
         case .streaming:

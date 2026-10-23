@@ -7,13 +7,25 @@ import SyncCore
 struct ScreenMappingView: View {
     @Bindable var control: LightControl
     @State private var selection: UInt8?
-    @State private var identifying = false
+    /// Light the real light while moving or selecting it on the canvas (or in the list).
+    @AppStorage("identifyWhileMoving") private var identifying = true
+
+    /// Selection changes made by the user (canvas or list); these trigger identify.
+    private var userSelection: Binding<UInt8?> {
+        Binding(
+            get: { selection },
+            set: { channel in
+                selection = channel
+                if identifying, let channel { Task { await control.identify(channel) } }
+            }
+        )
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 10) {
                 CaptureStatusBanner(control: control)
-                MappingCanvas(control: control, selection: $selection)
+                MappingCanvas(control: control, selection: userSelection)
                 HStack(spacing: 16) {
                     LegendItem(symbol: nil, text: "Strip segment")
                     LegendItem(symbol: "lamp.table", text: "Lamp: on the screen or beside it")
@@ -27,7 +39,7 @@ struct ScreenMappingView: View {
             }
             .frame(maxWidth: .infinity)
 
-            Inspector(control: control, selection: $selection, identifying: $identifying)
+            Inspector(control: control, selection: userSelection, identifying: $identifying)
                 .frame(width: 280)
         }
         .onAppear {
@@ -40,20 +52,14 @@ struct ScreenMappingView: View {
         }
         .onChange(of: selection) {
             if let selection { UserDefaults.standard.set(Int(selection), forKey: selectionKey) }
-            updateIdentify()
         }
-        .onChange(of: identifying) { updateIdentify() }
-        .onChange(of: control.state) {
-            if control.state != .streaming { identifying = false }
+        .onChange(of: identifying) {
+            if !identifying { Task { await control.identify(nil) } }
         }
-        .onDisappear { control.identifiedChannel = nil }
+        .onDisappear { Task { await control.identify(nil) } }
     }
 
     private var selectionKey: String { "screenSelection.\(control.area.id)" }
-
-    private func updateIdentify() {
-        control.identifiedChannel = identifying ? selection : nil
-    }
 }
 
 private struct LegendItem: View {
@@ -525,9 +531,8 @@ private struct SelectedChannelDetails: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Toggle("Identify in the room", isOn: $identifying)
-                    .disabled(control.state != .streaming)
-                    .help("Lights only this channel, in white, so you can find it. Requires sync to be running.")
+                Toggle("Identify while moving", isOn: $identifying)
+                    .help("When you move or select a light, the real light shines white and the others go dark. If sync is off, the lights are taken over just for this, without capturing the screen.")
             }
         } else {
             Text("Select a channel on the canvas or in the list.")

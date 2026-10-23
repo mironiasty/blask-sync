@@ -215,5 +215,8 @@ private struct ScreenSettingsPane: View {
             ScreenMappingView(control: control)
         }
         .padding()
+        .background(WindowVisibilityReader { visible in
+            if !visible { Task { await control.identify(nil) } }
+        })
     }
 }
