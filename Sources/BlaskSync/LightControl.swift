@@ -2,8 +2,9 @@ import AppKit
 import HueKit
 import Observation
 import SwiftUI
+import SyncCore
 
-/// Manual control of one entertainment area over the streaming API.
+/// Manual control and screen mapping of one entertainment area, driven over the streaming API.
 @MainActor
 @Observable
 final class LightControl {
@@ -13,37 +14,65 @@ final class LightControl {
 
     let area: EntertainmentArea
     private(set) var state: StreamState = .stopped
-    /// Light names per channel, e.g. "Desk lamp" or "Gradient strip, TV light".
-    private(set) var channelNames: [UInt8: String] = [:]
+    /// What renders each channel (lamp or strip segment); empty until `loadLights()` finishes.
+    private(set) var channelDescriptions: [UInt8: ChannelDescription] = [:]
     /// Base color per channel; `brightness` is applied on top when sending.
     private(set) var colors: [UInt8: LightColor]
     var brightness = 1.0 {
         didSet { pushColors() }
     }
+    /// Screen region each channel samples in screen sync. Saved per area.
+    var mapping: ScreenMapping {
+        didSet { mappingStore.save(mapping, areaId: area.id) }
+    }
+    /// While set, this channel shines white and all others go dark, to find it in the room.
+    var identifiedChannel: UInt8? {
+        didSet { pushColors() }
+    }
     var errorMessage: String?
 
     private let credentials: BridgeCredentials
+    private let mappingStore = ScreenMappingStore()
     private var stream: EntertainmentStream?
 
     init(area: EntertainmentArea, credentials: BridgeCredentials) {
         self.area = area
         self.credentials = credentials
         colors = Dictionary(uniqueKeysWithValues: area.channels.map { ($0.id, LightColor.white) })
+        mapping = (mappingStore.load(areaId: area.id) ?? .defaults(for: area.channels)).reconciled(with: area.channels)
     }
 
-    func loadChannelNames() async {
-        guard channelNames.isEmpty else { return }
+    func loadLights() async {
+        guard channelDescriptions.isEmpty else { return }
         do {
-            let names = try await BridgeClient(credentials: credentials)
-                .entertainmentServiceNames(applicationKey: credentials.applicationKey)
-            channelNames = Dictionary(uniqueKeysWithValues: area.channels.map { channel in
-                var seen = Set<String>()
-                let lights = channel.serviceIds.compactMap { names[$0] }.filter { seen.insert($0).inserted }
-                return (channel.id, lights.joined(separator: ", "))
+            let lights = try await BridgeClient(credentials: credentials)
+                .entertainmentLights(applicationKey: credentials.applicationKey)
+            channelDescriptions = Dictionary(uniqueKeysWithValues: area.channels.map {
+                ($0.id, ChannelDescription(channel: $0, lights: lights))
             })
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Gradient strips in the area, each with its channels in segment order.
+    var strips: [(light: EntertainmentLight, channels: [UInt8])] {
+        let segments = channelDescriptions.values.compactMap { description -> (EntertainmentLight, Int, UInt8)? in
+            guard let strip = description.strip, case .stripSegment(let index, _) = description.kind else { return nil }
+            return (strip, index, description.channelId)
+        }
+        return Dictionary(grouping: segments, by: { $0.0 })
+            .map { light, segments in (light, segments.sorted { $0.1 < $1.1 }.map(\.2)) }
+            .sorted { $0.light.name < $1.light.name }
+    }
+
+    /// Channels rendered by standalone lights, or every channel while light info is still loading.
+    var lampChannels: [UInt8] {
+        area.channels.map(\.id).filter { channelDescriptions[$0]?.strip == nil }
+    }
+
+    func resetMapping() {
+        mapping = .defaults(for: area.channels)
     }
 
     func setColor(_ color: LightColor, channel: UInt8) {
@@ -105,7 +134,10 @@ final class LightControl {
     }
 
     private var outputColors: [UInt8: LightColor] {
-        colors.mapValues { $0.scaled(by: brightness) }
+        if let identifiedChannel {
+            return Dictionary(uniqueKeysWithValues: colors.keys.map { ($0, $0 == identifiedChannel ? LightColor.white : .black) })
+        }
+        return colors.mapValues { $0.scaled(by: brightness) }
     }
 
     private func pushColors() {

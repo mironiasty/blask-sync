@@ -26,6 +26,67 @@ struct LightControlView: View {
 private struct LightControlPanel: View {
     @Bindable var control: LightControl
 
+    var body: some View {
+        VStack(spacing: 0) {
+            StreamingHeader(control: control)
+                .padding()
+            TabView {
+                ColorsTab(control: control)
+                    .tabItem { Text("Colors") }
+                ScreenMappingView(control: control)
+                    .tabItem { Text("Screen Mapping") }
+            }
+            .padding([.horizontal, .bottom])
+        }
+        .frame(minWidth: 760, minHeight: 560)
+        .task { await control.loadLights() }
+        .onDisappear { Task { await control.stop() } }
+    }
+}
+
+private struct StreamingHeader: View {
+    let control: LightControl
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(control.area.name).font(.title2.bold())
+                Spacer()
+                Circle()
+                    .fill(control.state == .streaming ? .green : .secondary.opacity(0.4))
+                    .frame(width: 10, height: 10)
+                Text(statusText).foregroundStyle(.secondary)
+                switch control.state {
+                case .stopped:
+                    Button("Start Streaming") { Task { await control.start() } }
+                        .buttonStyle(.borderedProminent)
+                case .streaming:
+                    Button("Stop") { Task { await control.stop() } }
+                case .starting, .stopping:
+                    ProgressView().controlSize(.small)
+                }
+            }
+            if let error = control.errorMessage {
+                Text(error).foregroundStyle(.red)
+            }
+        }
+    }
+
+    private var statusText: String {
+        switch control.state {
+        case .stopped: "Not streaming"
+        case .starting: "Connecting…"
+        case .streaming: "Streaming"
+        case .stopping: "Stopping…"
+        }
+    }
+}
+
+// MARK: Colors tab
+
+private struct ColorsTab: View {
+    @Bindable var control: LightControl
+
     private static let presets: [(name: String, color: LightColor)] = [
         ("Warm white", LightColor(red: 1, green: 0.72, blue: 0.42)),
         ("Cool white", .white),
@@ -39,17 +100,6 @@ private struct LightControlPanel: View {
     var body: some View {
         Form {
             Section {
-                streamingRow
-                if let error = control.errorMessage {
-                    Text(error).foregroundStyle(.red)
-                }
-            } header: {
-                Text(control.area.name).font(.title3.bold())
-            } footer: {
-                Text("While streaming, the bridge locks these lights to Blask Sync. They return to their previous state when you stop.")
-            }
-
-            Section("All Lights") {
                 ColorPicker("Color", selection: allLightsColor, supportsOpacity: false)
                 HStack(spacing: 8) {
                     ForEach(Self.presets, id: \.name) { preset in
@@ -66,50 +116,44 @@ private struct LightControlPanel: View {
                 LabeledContent("Brightness") {
                     Slider(value: $control.brightness, in: 0...1)
                 }
+            } header: {
+                Text("All Lights")
+            } footer: {
+                Text("While streaming, the bridge locks these lights to Blask Sync. They return to their previous state when you stop.")
             }
 
-            Section("Channels") {
-                ForEach(control.area.channels) { channel in
+            ForEach(control.strips, id: \.light) { strip in
+                Section {
+                    ForEach(Array(strip.channels.enumerated()), id: \.element) { index, channelId in
+                        ChannelRow(
+                            title: "Segment \(index + 1)",
+                            symbol: "light.strip.2",
+                            channel: channel(channelId),
+                            color: channelColor(channelId)
+                        )
+                    }
+                } header: {
+                    Label("\(strip.light.name) · gradient strip, \(strip.channels.count) segments", systemImage: "light.strip.2")
+                }
+            }
+
+            Section("Lamps") {
+                ForEach(control.lampChannels, id: \.self) { channelId in
+                    let description = control.channelDescriptions[channelId]
                     ChannelRow(
-                        channel: channel,
-                        lights: control.channelNames[channel.id],
-                        color: channelColor(channel.id)
+                        title: description?.name.nilIfEmpty ?? "Channel \(channelId)",
+                        symbol: LightSymbol.name(for: description?.lights.first?.archetype),
+                        channel: channel(channelId),
+                        color: channelColor(channelId)
                     )
                 }
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 420, minHeight: 480)
-        .task { await control.loadChannelNames() }
-        .onDisappear { Task { await control.stop() } }
     }
 
-    private var streamingRow: some View {
-        HStack {
-            Circle()
-                .fill(control.state == .streaming ? .green : .secondary.opacity(0.4))
-                .frame(width: 10, height: 10)
-            Text(statusText)
-            Spacer()
-            switch control.state {
-            case .stopped:
-                Button("Start Streaming") { Task { await control.start() } }
-                    .buttonStyle(.borderedProminent)
-            case .streaming:
-                Button("Stop") { Task { await control.stop() } }
-            case .starting, .stopping:
-                ProgressView().controlSize(.small)
-            }
-        }
-    }
-
-    private var statusText: String {
-        switch control.state {
-        case .stopped: "Not streaming"
-        case .starting: "Connecting…"
-        case .streaming: "Streaming"
-        case .stopping: "Stopping…"
-        }
+    private func channel(_ id: UInt8) -> EntertainmentArea.Channel {
+        control.area.channels.first { $0.id == id }!
     }
 
     private var allLightsColor: Binding<Color> {
@@ -128,15 +172,19 @@ private struct LightControlPanel: View {
 }
 
 private struct ChannelRow: View {
+    let title: String
+    let symbol: String
     let channel: EntertainmentArea.Channel
-    let lights: String?
     @Binding var color: Color
 
     var body: some View {
         HStack {
+            Image(systemName: symbol)
+                .frame(width: 20)
+                .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
+                Text(title)
                 Text("Channel \(channel.id)")
-                Text(lights?.isEmpty == false ? lights! : " ")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -144,8 +192,30 @@ private struct ChannelRow: View {
             Text(String(format: "x %+.2f  y %+.2f  z %+.2f", channel.position.x, channel.position.y, channel.position.z))
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
-            ColorPicker("Channel \(channel.id) color", selection: $color, supportsOpacity: false)
+            ColorPicker("\(title) color", selection: $color, supportsOpacity: false)
                 .labelsHidden()
         }
     }
+}
+
+/// SF Symbol for a Hue light archetype.
+enum LightSymbol {
+    static func name(for archetype: String?) -> String {
+        guard let archetype else { return "lightbulb" }
+        switch archetype {
+        case let a where a.contains("lightstrip"): return "light.strip.2"
+        case "hue_play": return "light.panel"
+        case "hue_go", "table_shade", "table_wash", "christmas_tree": return "lamp.table"
+        case let a where a.hasPrefix("floor"): return "lamp.floor"
+        case let a where a.hasPrefix("desk"): return "lamp.desk"
+        case let a where a.hasPrefix("pendant") || a.hasPrefix("ceiling"): return "lamp.ceiling"
+        case "chandelier": return "chandelier"
+        case "recessed_ceiling", "recessed_floor": return "light.recessed"
+        default: return "lightbulb"
+        }
+    }
+}
+
+extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

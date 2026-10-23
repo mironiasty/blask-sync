@@ -48,18 +48,43 @@ public struct EntertainmentArea: Identifiable, Hashable, Sendable, Decodable {
         public let id: UInt8
         /// Position in the room, each axis in -1...1: x left→right, y back→front (screen side is +1), z down→up.
         public let position: Position
+        /// The lights (or strip segments) that render this channel; usually exactly one.
+        public let members: [Member]
+
         /// IDs of the `entertainment` services (one per light) that render this channel.
-        public let serviceIds: [String]
+        public var serviceIds: [String] { members.map(\.serviceId) }
 
         public struct Position: Hashable, Sendable, Decodable {
             public let x: Double
             public let y: Double
             public let z: Double
+
+            public init(x: Double, y: Double, z: Double) {
+                self.x = x
+                self.y = y
+                self.z = z
+            }
         }
 
-        private struct Member: Decodable {
-            struct Service: Decodable { let rid: String }
-            let service: Service
+        public struct Member: Hashable, Sendable, Decodable {
+            /// The light's `entertainment` service ID.
+            public let serviceId: String
+            /// Segment of that light; always 0 for single-segment lights.
+            public let index: Int
+
+            public init(serviceId: String, index: Int) {
+                self.serviceId = serviceId
+                self.index = index
+            }
+
+            private struct Service: Decodable { let rid: String }
+            private enum CodingKeys: String, CodingKey { case service, index }
+
+            public init(from decoder: Decoder) throws {
+                let c = try decoder.container(keyedBy: CodingKeys.self)
+                serviceId = try c.decode(Service.self, forKey: .service).rid
+                index = try c.decodeIfPresent(Int.self, forKey: .index) ?? 0
+            }
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -67,11 +92,17 @@ public struct EntertainmentArea: Identifiable, Hashable, Sendable, Decodable {
             case position, members
         }
 
+        public init(id: UInt8, position: Position, members: [Member]) {
+            self.id = id
+            self.position = position
+            self.members = members
+        }
+
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             id = try c.decode(UInt8.self, forKey: .id)
             position = try c.decode(Position.self, forKey: .position)
-            serviceIds = try c.decode([Member].self, forKey: .members).map(\.service.rid)
+            members = try c.decode([Member].self, forKey: .members)
         }
     }
 
@@ -89,6 +120,58 @@ public struct EntertainmentArea: Identifiable, Hashable, Sendable, Decodable {
         configurationType = try c.decode(String.self, forKey: .configurationType)
         status = try c.decode(String.self, forKey: .status)
         channels = try c.decode([Channel].self, forKey: .channels)
+    }
+}
+
+/// A light that takes part in entertainment areas, as seen through its `entertainment` service.
+public struct EntertainmentLight: Hashable, Sendable {
+    public let serviceId: String
+    public let name: String
+    /// The light's archetype as set in the Hue app, e.g. `hue_lightstrip_pc`, `table_shade`, `hue_play`.
+    public let archetype: String
+    /// Number of independently streamable segments: more than 1 for gradient strips.
+    public let segmentCount: Int
+
+    public init(serviceId: String, name: String, archetype: String, segmentCount: Int) {
+        self.serviceId = serviceId
+        self.name = name
+        self.archetype = archetype
+        self.segmentCount = segmentCount
+    }
+}
+
+/// What physically renders a channel: a standalone lamp or one segment of a gradient strip.
+public struct ChannelDescription: Hashable, Sendable {
+    public enum Kind: Hashable, Sendable {
+        case lamp
+        case stripSegment(index: Int, count: Int)
+    }
+
+    public let channelId: UInt8
+    public let kind: Kind
+    /// Usually one light; a channel can have several members.
+    public let lights: [EntertainmentLight]
+
+    public var name: String {
+        var seen = Set<String>()
+        return lights.map(\.name).filter { seen.insert($0).inserted }.joined(separator: ", ")
+    }
+
+    /// The strip this channel belongs to, if it's a strip segment.
+    public var strip: EntertainmentLight? {
+        guard case .stripSegment = kind else { return nil }
+        return lights.first { $0.segmentCount > 1 }
+    }
+
+    public init(channel: EntertainmentArea.Channel, lights lightsByService: [String: EntertainmentLight]) {
+        channelId = channel.id
+        lights = channel.members.compactMap { lightsByService[$0.serviceId] }
+        let segmented = channel.members.first { (lightsByService[$0.serviceId]?.segmentCount ?? 1) > 1 }
+        if let segmented, let light = lightsByService[segmented.serviceId] {
+            kind = .stripSegment(index: segmented.index, count: light.segmentCount)
+        } else {
+            kind = .lamp
+        }
     }
 }
 

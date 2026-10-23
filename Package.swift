@@ -10,8 +10,11 @@ let package = Package(
     targets: [
         // Bridge discovery, pairing and the CLIP v2 API. No UI code.
         .target(name: "HueKit"),
+        // Turning screen (and later audio) content into channel colors. No UI code.
+        .target(name: "SyncCore", dependencies: ["HueKit"]),
         // The menu bar app.
-        .executableTarget(name: "BlaskSync", dependencies: ["HueKit"]),
+        .executableTarget(name: "BlaskSync", dependencies: ["HueKit", "SyncCore"]),
         .testTarget(name: "HueKitTests", dependencies: ["HueKit"]),
+        .testTarget(name: "SyncCoreTests", dependencies: ["SyncCore"]),
     ]
 )

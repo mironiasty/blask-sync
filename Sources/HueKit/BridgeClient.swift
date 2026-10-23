@@ -102,25 +102,51 @@ public final class BridgeClient: Sendable {
         try await resources("entertainment_configuration", applicationKey: applicationKey)
     }
 
-    /// Maps each `entertainment` service ID to the name of the light (device) that owns it.
-    public func entertainmentServiceNames(applicationKey: String) async throws -> [String: String] {
+    /// Every light that can render entertainment streams, keyed by its `entertainment` service ID.
+    /// Combines three resources: `entertainment` (segments), `device` (name) and `light` (archetype).
+    public func entertainmentLights(applicationKey: String) async throws -> [String: EntertainmentLight] {
+        struct Reference: Decodable { let rid: String; let rtype: String }
         struct Service: Decodable {
-            struct Owner: Decodable { let rid: String }
+            struct Segments: Decodable {
+                struct Segment: Decodable {}
+                let segments: [Segment]
+            }
             let id: String
-            let owner: Owner
+            let owner: Reference
+            let renderer: Bool
+            let segments: Segments?
         }
         struct Device: Decodable {
-            struct Metadata: Decodable { let name: String }
+            struct Metadata: Decodable { let name: String; let archetype: String? }
+            let id: String
+            let metadata: Metadata
+            let services: [Reference]
+        }
+        struct Light: Decodable {
+            struct Metadata: Decodable { let archetype: String }
             let id: String
             let metadata: Metadata
         }
         async let services: [Service] = resources("entertainment", applicationKey: applicationKey)
         async let devices: [Device] = resources("device", applicationKey: applicationKey)
+        async let lights: [Light] = resources("light", applicationKey: applicationKey)
 
-        let deviceNames = Dictionary(try await devices.map { ($0.id, $0.metadata.name) }, uniquingKeysWith: { a, _ in a })
-        return Dictionary(try await services.compactMap { service in
-            deviceNames[service.owner.rid].map { (service.id, $0) }
-        }, uniquingKeysWith: { a, _ in a })
+        let devicesById = Dictionary(try await devices.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        // The light's archetype is what the user picked in the Hue app; the device's is the product default.
+        let lightArchetypes = Dictionary(try await lights.map { ($0.id, $0.metadata.archetype) }, uniquingKeysWith: { a, _ in a })
+
+        var result: [String: EntertainmentLight] = [:]
+        for service in try await services where service.renderer {
+            guard let device = devicesById[service.owner.rid] else { continue }
+            let lightId = device.services.first { $0.rtype == "light" }?.rid
+            result[service.id] = EntertainmentLight(
+                serviceId: service.id,
+                name: device.metadata.name,
+                archetype: lightId.flatMap { lightArchetypes[$0] } ?? device.metadata.archetype ?? "classic_bulb",
+                segmentCount: max(1, service.segments?.segments.count ?? 1)
+            )
+        }
+        return result
     }
 
     /// Claims (`active: true`) or releases an entertainment area for streaming.
