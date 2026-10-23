@@ -31,11 +31,34 @@ private struct ManualControlPanel: View {
                 Text(control.area.name).font(.title2.bold())
                 SyncStatusLabel(control: control)
                 Spacer()
-                if control.state == .stopped {
-                    Button("Resume") { Task { await control.start() } }
+                if control.mode == .manual {
+                    if control.state == .stopped {
+                        Button("Resume") { Task { await control.start() } }
+                    }
+                    Button {
+                        Task { await control.resumeSync(control.syncSource) }
+                    } label: {
+                        Label(
+                            control.syncSource == .screen ? "Back to Screen Sync" : "Back to Music Sync",
+                            systemImage: control.syncSource == .screen ? "display" : "hifispeaker.fill"
+                        )
+                    }
                 }
             }
             .padding([.horizontal, .top])
+            if control.mode != .manual {
+                // Switched away from the menu bar while this window was open.
+                HStack {
+                    Image(systemName: "info.circle.fill").foregroundStyle(.blue)
+                    Text(control.mode == .screen ? "The lights are following the screen." : "The lights are following the music.")
+                    Spacer()
+                    Button("Take Over") { Task { await control.beginManual() } }
+                        .buttonStyle(.borderedProminent)
+                }
+                .padding(10)
+                .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                .padding([.horizontal, .top])
+            }
             if let error = control.errorMessage {
                 Text(error)
                     .foregroundStyle(.red)
@@ -162,7 +185,7 @@ private struct ManualColorsForm: View {
             } header: {
                 Text("All Lights")
             } footer: {
-                Text("Closing this window hands the lights back to screen sync if it was running, or releases them.")
+                Text("Closing this window hands the lights back to sync if it was running, or releases them. You can also switch back from the menu bar.")
             }
 
             ForEach(control.strips, id: \.light) { strip in

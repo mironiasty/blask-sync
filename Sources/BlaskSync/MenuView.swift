@@ -72,23 +72,21 @@ struct MenuView: View {
                 .font(.callout)
         }
 
-        Picker("Sync with", selection: Binding(get: { control.syncSource }, set: { control.syncSource = $0 })) {
-            Label("Screen", systemImage: "display").tag(LightControl.SyncSource.screen)
-            Label("Music", systemImage: "hifispeaker.fill").tag(LightControl.SyncSource.music)
+        Picker("Lights follow", selection: modeSelection(control)) {
+            Label("Screen", systemImage: "display").tag(MenuMode.screen)
+            Label("Music", systemImage: "hifispeaker.fill").tag(MenuMode.music)
+            Label("Manual", systemImage: "slider.horizontal.3").tag(MenuMode.manual)
         }
         .pickerStyle(.segmented)
         .labelsHidden()
 
-        SyncButton(control: control, large: true)
-
-        Button {
-            openWindow(id: ManualControlView.windowId)
-            NSApp.activate()
-        } label: {
-            Label("Manual Control…", systemImage: "slider.horizontal.3")
-                .frame(maxWidth: .infinity)
+        if control.mode == .manual {
+            Button("Show Manual Control", action: showManualControl)
+                .buttonStyle(.link)
+                .font(.callout)
         }
-        .controlSize(.large)
+
+        SyncButton(control: control, large: true)
 
         if control.syncSource == .screen {
             CaptureStatusBanner(control: control, compact: true)
@@ -105,6 +103,40 @@ struct MenuView: View {
                 .foregroundStyle(.red)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// The menu's three-way choice: the sync source, or manual colors.
+    private enum MenuMode: Hashable {
+        case screen, music, manual
+    }
+
+    private func modeSelection(_ control: LightControl) -> Binding<MenuMode> {
+        Binding(
+            get: {
+                if control.mode == .manual { return .manual }
+                return control.syncSource == .screen ? .screen : .music
+            },
+            set: { selection in
+                switch selection {
+                case .manual:
+                    showManualControl()
+                    Task { await control.beginManual() }
+                case .screen, .music:
+                    let source: LightControl.SyncSource = selection == .screen ? .screen : .music
+                    if control.mode == .manual {
+                        // Leave manual right away; the window stays open and offers to take over again.
+                        Task { await control.resumeSync(source) }
+                    } else {
+                        control.syncSource = source
+                    }
+                }
+            }
+        )
+    }
+
+    private func showManualControl() {
+        openWindow(id: ManualControlView.windowId)
+        NSApp.activate()
     }
 
     private func showSettings() {

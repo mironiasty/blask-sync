@@ -261,6 +261,17 @@ final class LightControl {
         if state == .stopped { await start() }
     }
 
+    /// Leaves manual (or switches source) and makes the lights follow `source`, streaming if needed.
+    func resumeSync(_ source: SyncSource) async {
+        syncSource = source
+        if source == .screen, !ScreenCapture.hasPermission {
+            captureState = .needsPermission
+            return
+        }
+        mode = source.mode
+        if state == .stopped { await start() }
+    }
+
     /// Returns to screen sync if it was running before, else releases the lights.
     func endManual() async {
         guard mode == .manual else { return }
