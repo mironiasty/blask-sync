@@ -63,7 +63,7 @@ The sync session belongs to the app, not to a window, so sync keeps running with
 
 Configured in **Settings → Screen**, started from the menu bar:
 
-- **Capture.** ScreenCaptureKit streams the chosen display at 160 px wide and up to 30 fps
+- **Capture.** ScreenCaptureKit streams the chosen display at 160 px wide and up to 60 fps
   (`SyncCore/ScreenCapture.swift`). Blask Sync's own windows are left out, so the editor doesn't sample itself.
 - **Mapping.** Each channel samples a screen region. Strip segments (solid, joined in physical order) and
   lamps (dashed) can be dragged and resized over a live preview. Mappings are saved per area.
