@@ -77,3 +77,27 @@ struct ColorProcessingTests {
         }
     }
 }
+
+struct AmbientBlendTests {
+    @Test func lampBesideScreenBlendsTowardOverallColor() {
+        // Left half red, right half blue (overall: purple).
+        let bytesPerRow = 16
+        var pixels = Data(count: bytesPerRow * 2)
+        for y in 0..<2 {
+            for x in 0..<4 {
+                let offset = y * bytesPerRow + x * 4
+                pixels[offset] = x < 2 ? 0 : 255
+                pixels[offset + 2] = x < 2 ? 255 : 0
+                pixels[offset + 3] = 255
+            }
+        }
+        let frame = Frame(width: 4, height: 2, bytesPerRow: bytesPerRow, pixels: pixels)
+        // Left of the screen: samples the left (red) half, blended toward purple.
+        let lamp = ScreenRegion(x: -0.4, y: 0, width: 0.5, height: 1)
+        let color = ColorExtractor.averageColors(in: frame, mapping: ScreenMapping(regions: [0: lamp]))[0]!
+        let blend = lamp.ambientBlend
+        #expect(blend > 0)
+        #expect(abs(color.red - (1 - 0.5 * blend)) < 1e-9)
+        #expect(abs(color.blue - 0.5 * blend) < 1e-9)
+    }
+}

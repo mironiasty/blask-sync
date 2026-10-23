@@ -18,30 +18,46 @@ public struct Frame: Sendable {
 }
 
 public enum ColorExtractor {
-    /// Average color of each channel's region. Regions always cover at least one pixel.
+    /// Color of each channel: the average of its sampled screen area, blended toward the whole
+    /// screen's average for lamps beside the screen (see `ScreenRegion.ambientBlend`).
     public static func averageColors(in frame: Frame, mapping: ScreenMapping) -> [UInt8: LightColor] {
         frame.pixels.withUnsafeBytes { buffer in
             let bytes = buffer.bindMemory(to: UInt8.self)
-            return mapping.regions.mapValues { region in
-                let x0 = min(Int(region.x * Double(frame.width)), frame.width - 1)
-                let y0 = min(Int(region.y * Double(frame.height)), frame.height - 1)
-                let x1 = max(x0 + 1, min(Int((region.x + region.width) * Double(frame.width)), frame.width))
-                let y1 = max(y0 + 1, min(Int((region.y + region.height) * Double(frame.height)), frame.height))
+            let needsOverall = mapping.regions.values.contains { $0.ambientBlend > 0 }
+            let overall = needsOverall ? average(bytes, frame, ScreenRegion(x: 0, y: 0, width: 1, height: 1)) : nil
 
-                var blue = 0, green = 0, red = 0
-                for y in y0..<y1 {
-                    var offset = y * frame.bytesPerRow + x0 * 4
-                    for _ in x0..<x1 {
-                        blue += Int(bytes[offset])
-                        green += Int(bytes[offset + 1])
-                        red += Int(bytes[offset + 2])
-                        offset += 4
-                    }
-                }
-                let scale = 1 / (255 * Double((x1 - x0) * (y1 - y0)))
-                return LightColor(red: Double(red) * scale, green: Double(green) * scale, blue: Double(blue) * scale)
+            return mapping.regions.mapValues { region in
+                let local = average(bytes, frame, region.sampledRegion)
+                let blend = region.ambientBlend
+                guard blend > 0, let overall else { return local }
+                return LightColor(
+                    red: local.red + (overall.red - local.red) * blend,
+                    green: local.green + (overall.green - local.green) * blend,
+                    blue: local.blue + (overall.blue - local.blue) * blend
+                )
             }
         }
+    }
+
+    /// Average color of an on-screen region. Always covers at least one pixel.
+    private static func average(_ bytes: UnsafeBufferPointer<UInt8>, _ frame: Frame, _ region: ScreenRegion) -> LightColor {
+        let x0 = min(max(Int(region.x * Double(frame.width)), 0), frame.width - 1)
+        let y0 = min(max(Int(region.y * Double(frame.height)), 0), frame.height - 1)
+        let x1 = max(x0 + 1, min(Int((region.x + region.width) * Double(frame.width)), frame.width))
+        let y1 = max(y0 + 1, min(Int((region.y + region.height) * Double(frame.height)), frame.height))
+
+        var blue = 0, green = 0, red = 0
+        for y in y0..<y1 {
+            var offset = y * frame.bytesPerRow + x0 * 4
+            for _ in x0..<x1 {
+                blue += Int(bytes[offset])
+                green += Int(bytes[offset + 1])
+                red += Int(bytes[offset + 2])
+                offset += 4
+            }
+        }
+        let scale = 1 / (255 * Double((x1 - x0) * (y1 - y0)))
+        return LightColor(red: Double(red) * scale, green: Double(green) * scale, blue: Double(blue) * scale)
     }
 }
 
