@@ -103,10 +103,6 @@ final class LightControl {
     private(set) var lastBeat: Date?
     private(set) var musicError: String?
 
-    /// Set while the screen settings are visible, so the preview runs without streaming.
-    var previewing = false {
-        didSet { updateEngines() }
-    }
     private(set) var displays: [DisplayInfo] = DisplayInfo.all()
     var selectedDisplayID: CGDirectDisplayID {
         didSet {
@@ -235,7 +231,6 @@ final class LightControl {
             NSWorkspace.shared.notificationCenter.removeObserver(activationObserver)
             self.activationObserver = nil
         }
-        previewing = false
         musicPreviewing = false
         await stop()
         await stopCapture()
@@ -567,9 +562,9 @@ final class LightControl {
         engine?.update(engineSettings)
     }
 
-    /// Capture runs for the settings preview, or while streaming follows the screen.
+    /// Screen capture runs only while streaming follows the screen; Settings doesn't capture.
     private var captureNeeded: Bool {
-        previewing || (mode == .screen && state != .stopped)
+        mode == .screen && state != .stopped
     }
 
     private func updateEngines() {

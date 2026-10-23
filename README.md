@@ -51,8 +51,8 @@ certificate, install Apple's [WWDR G3 intermediate](https://www.apple.com/certif
 - **Settings (⌘,)**
   - **General:** bridge discovery, pairing and forgetting, and the default entertainment area.
   - **Screen:** the mapping canvas and an inspector with Capture (display, intensity), Color (brightness,
-    saturation boost, minimum brightness), the channel list and the selected channel's details. The live
-    preview runs while this tab is visible.
+    saturation boost, minimum brightness), the channel list and the selected channel's details. Settings doesn't capture the screen:
+    the monitor shows the live picture only while screen sync runs.
   - **Music:** palette, intensity and brightness, with live level/bass/mid/high meters, a beat indicator and
     the colors being sent.
 - **Manual Control window.** A color wheel with a pin per light (drag a pin to recolor it; selected lights turn

@@ -199,7 +199,7 @@ private struct MappingCanvas: View {
                 } else {
                     LinearGradient(colors: [Color(white: 0.13), Color(white: 0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
                         .overlay(
-                            Label(control.pausedForApp == nil ? "Screen preview" : "Paused while \(control.pausedForApp!) is in front", systemImage: "display")
+                            Label(control.pausedForApp == nil ? "Live preview while screen sync runs" : "Paused while \(control.pausedForApp!) is in front", systemImage: "display")
                                 .font(.caption)
                                 .foregroundStyle(Color(white: 0.45))
                         )

@@ -200,8 +200,6 @@ private struct ScreenSettings: View {
 
 private struct ScreenSettingsPane: View {
     let control: LightControl
-    @State private var paneVisible = false
-    @State private var windowVisible = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -217,13 +215,5 @@ private struct ScreenSettingsPane: View {
             ScreenMappingView(control: control)
         }
         .padding()
-        // The live preview (screen capture) runs only while this tab is shown in an open, visible window.
-        .onAppear { paneVisible = true; updatePreview() }
-        .onDisappear { paneVisible = false; updatePreview() }
-        .background(WindowVisibilityReader { windowVisible = $0; updatePreview() })
-    }
-
-    private func updatePreview() {
-        control.previewing = paneVisible && windowVisible
     }
 }
