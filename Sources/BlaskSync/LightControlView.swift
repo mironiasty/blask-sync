@@ -30,17 +30,24 @@ private struct LightControlPanel: View {
         VStack(spacing: 0) {
             StreamingHeader(control: control)
                 .padding()
-            TabView {
-                ColorsTab(control: control)
-                    .tabItem { Text("Colors") }
-                ScreenMappingView(control: control)
-                    .tabItem { Text("Screen Mapping") }
+            Picker("Mode", selection: $control.mode) {
+                Text("Manual").tag(LightControl.Mode.manual)
+                Text("Screen").tag(LightControl.Mode.screen)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            Group {
+                switch control.mode {
+                case .manual: ColorsTab(control: control)
+                case .screen: ScreenMappingView(control: control)
+                }
             }
             .padding([.horizontal, .bottom])
         }
-        .frame(minWidth: 760, minHeight: 560)
-        .task { await control.loadLights() }
-        .onDisappear { Task { await control.stop() } }
+        .frame(minWidth: 760, minHeight: 600)
+        .task { await control.activate() }
+        .onDisappear { Task { await control.deactivate() } }
     }
 }
 

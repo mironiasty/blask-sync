@@ -1,0 +1,79 @@
+import Foundation
+import HueKit
+import os
+
+/// Turns captured frames into smoothed channel colors.
+///
+/// Frames only set the target colors. A separate 50 Hz tick eases toward them, so transitions
+/// complete even when the screen goes static and ScreenCaptureKit stops delivering frames.
+public final class ScreenSyncEngine: @unchecked Sendable {
+    // @unchecked: `timer` and `smoother` are only touched on `queue`; everything else is lock-protected or immutable.
+
+    public struct Settings: Sendable, Equatable {
+        public var mapping: ScreenMapping
+        public var intensity: SyncIntensity
+        public var brightness: Double
+
+        public init(mapping: ScreenMapping, intensity: SyncIntensity, brightness: Double) {
+            self.mapping = mapping
+            self.intensity = intensity
+            self.brightness = brightness
+        }
+    }
+
+    private let settings: OSAllocatedUnfairLock<Settings>
+    private let target = OSAllocatedUnfairLock(initialState: [UInt8: LightColor]())
+    private let output: @Sendable ([UInt8: LightColor]) -> Void
+    private let queue = DispatchQueue(label: "blask.screen-sync", qos: .userInteractive)
+    private var smoother = ColorSmoother()
+    private var timer: DispatchSourceTimer?
+
+    /// - Parameter output: Called on the engine's queue with brightness-scaled colors, 50 times a second.
+    public init(settings: Settings, output: @escaping @Sendable ([UInt8: LightColor]) -> Void) {
+        self.settings = OSAllocatedUnfairLock(initialState: settings)
+        self.output = output
+    }
+
+    public func update(_ settings: Settings) {
+        self.settings.withLock { $0 = settings }
+    }
+
+    /// Safe to call from any thread; cheap enough for every captured frame.
+    public func process(_ frame: Frame) {
+        let mapping = settings.withLock { $0.mapping }
+        let colors = ColorExtractor.averageColors(in: frame, mapping: mapping)
+        target.withLock { $0 = colors }
+    }
+
+    public func start() {
+        queue.sync {
+            guard timer == nil else { return }
+            let timer = DispatchSource.makeTimerSource(queue: queue)
+            timer.schedule(deadline: .now(), repeating: .milliseconds(20), leeway: .milliseconds(2))
+            timer.setEventHandler { [weak self] in self?.tick() }
+            timer.resume()
+            self.timer = timer
+        }
+    }
+
+    public func stop() {
+        queue.sync {
+            timer?.cancel()
+            timer = nil
+            smoother = ColorSmoother()
+        }
+    }
+
+    /// Runs on `queue`.
+    private func tick() {
+        let goal = target.withLock { $0 }
+        guard !goal.isEmpty else { return }
+        let settings = settings.withLock { $0 }
+        let smoothed = smoother.update(
+            toward: goal,
+            timeConstant: settings.intensity.timeConstant,
+            now: ProcessInfo.processInfo.systemUptime
+        )
+        output(smoothed.mapValues { $0.scaled(by: settings.brightness) })
+    }
+}

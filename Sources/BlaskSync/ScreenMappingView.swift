@@ -2,7 +2,8 @@ import HueKit
 import SwiftUI
 import SyncCore
 
-/// Editor for which part of the screen each channel samples: drag regions to move, drag a corner to resize.
+/// Screen sync settings plus an editor for which part of the screen each channel samples:
+/// drag regions to move, drag a corner to resize.
 struct ScreenMappingView: View {
     @Bindable var control: LightControl
     @State private var selection: UInt8?
@@ -11,6 +12,26 @@ struct ScreenMappingView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Picker("Display", selection: $control.selectedDisplayID) {
+                        ForEach(control.displays) { display in
+                            Text(display.name).tag(display.id)
+                        }
+                    }
+                    .fixedSize()
+                    Spacer()
+                    LabeledContent("Brightness") {
+                        Slider(value: $control.brightness, in: 0...1)
+                            .frame(width: 120)
+                    }
+                    Picker("Intensity", selection: $control.intensity) {
+                        ForEach(SyncIntensity.allCases, id: \.self) { intensity in
+                            Text(intensity.rawValue.capitalized).tag(intensity)
+                        }
+                    }
+                    .fixedSize()
+                }
+                CaptureStatusBanner(control: control)
                 ScreenCanvas(control: control, selection: $selection)
                 HStack {
                     Text("Drag a region to move it, drag its corner to resize.")
@@ -54,13 +75,21 @@ private struct ScreenCanvas: View {
         GeometryReader { geometry in
             let size = geometry.size
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(LinearGradient(colors: [Color(white: 0.16), Color(white: 0.08)], startPoint: .top, endPoint: .bottom))
-                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(white: 0.35), lineWidth: 2))
-                Text("Screen")
-                    .font(.caption)
-                    .foregroundStyle(Color(white: 0.45))
-                    .frame(width: size.width, height: size.height)
+                if let preview = control.preview {
+                    Image(decorative: preview, scale: 1)
+                        .resizable()
+                        .frame(width: size.width, height: size.height)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(white: 0.35), lineWidth: 2))
+                } else {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(LinearGradient(colors: [Color(white: 0.16), Color(white: 0.08)], startPoint: .top, endPoint: .bottom))
+                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(white: 0.35), lineWidth: 2))
+                    Text("Screen")
+                        .font(.caption)
+                        .foregroundStyle(Color(white: 0.45))
+                        .frame(width: size.width, height: size.height)
+                }
 
                 // Strip segments in physical order, so the strip's run around the screen is visible.
                 ForEach(control.strips, id: \.light) { strip in
@@ -79,6 +108,7 @@ private struct ScreenCanvas: View {
                         RegionView(
                             label: label(for: channel.id),
                             isStrip: control.channelDescriptions[channel.id]?.strip != nil,
+                            liveColor: control.liveColors[channel.id]?.color,
                             isSelected: selection == channel.id,
                             region: regionBinding(channel.id, fallback: region),
                             canvasSize: size,
@@ -89,7 +119,7 @@ private struct ScreenCanvas: View {
                 }
             }
         }
-        .aspectRatio(16 / 9, contentMode: .fit)
+        .aspectRatio(control.selectedDisplay?.aspectRatio ?? 16 / 9, contentMode: .fit)
     }
 
     private func label(for channelId: UInt8) -> String {
@@ -109,6 +139,8 @@ private struct ScreenCanvas: View {
 private struct RegionView: View {
     let label: String
     let isStrip: Bool
+    /// The color this channel currently sends, shown as a swatch while screen sync runs.
+    let liveColor: Color?
     let isSelected: Bool
     @Binding var region: ScreenRegion
     let canvasSize: CGSize
@@ -133,9 +165,18 @@ private struct RegionView: View {
                     .strokeBorder(tint, style: StrokeStyle(lineWidth: isSelected ? 2.5 : 1.5, dash: isStrip ? [] : [4, 3]))
             )
             .overlay {
-                Text(label)
-                    .font(.caption.bold())
-                    .foregroundStyle(.white)
+                HStack(spacing: 4) {
+                    if let liveColor {
+                        Circle()
+                            .fill(liveColor)
+                            .overlay(Circle().strokeBorder(.white.opacity(0.8)))
+                            .frame(width: 12, height: 12)
+                    }
+                    Text(label)
+                        .font(.caption.bold())
+                        .foregroundStyle(.white)
+                        .shadow(radius: 2)
+                }
             }
             .overlay(alignment: .bottomTrailing) {
                 if isSelected { resizeHandle }
@@ -211,5 +252,44 @@ private struct ChannelList: View {
         }
         .listStyle(.sidebar)
         .frame(minHeight: 260)
+    }
+}
+
+// MARK: Capture status
+
+private struct CaptureStatusBanner: View {
+    let control: LightControl
+
+    var body: some View {
+        switch control.captureState {
+        case .idle, .capturing:
+            EmptyView()
+        case .needsPermission:
+            banner(
+                "Blask Sync needs Screen Recording permission to sample your screen.",
+                detail: "After allowing it in System Settings, relaunch the app."
+            ) {
+                Button("Grant Access…", action: control.requestScreenPermission)
+                Button("Relaunch", action: control.relaunch)
+            }
+        case .failed(let message):
+            banner(message, detail: nil) { EmptyView() }
+        }
+    }
+
+    private func banner(_ message: String, detail: String?, @ViewBuilder actions: () -> some View) -> some View {
+        HStack(alignment: .top) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(message)
+                if let detail {
+                    Text(detail).font(.callout).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            actions()
+        }
+        .padding(10)
+        .background(.yellow.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
     }
 }

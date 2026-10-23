@@ -2,7 +2,7 @@
 
 A menu bar app that drives Philips Hue lights from screen content and system audio.
 
-**Status:** bridge discovery, pairing, and manual light control over the Entertainment streaming API.
+**Status:** bridge discovery, pairing, manual light control, and screen sync over the Entertainment streaming API.
 
 ## Requirements
 
@@ -46,6 +46,22 @@ Choosing **Control…** next to an entertainment area in the menu opens the Ligh
    is the application key and the key is the hex-decoded client key.
 2. Each channel's RGB color goes out as a HueStream v2 message at 50 Hz (`HueKit/EntertainmentStream.swift`).
 3. **Stop**, closing the window, or quitting sends `{"action": "stop"}`. The lights then return to their previous state.
+
+## Screen sync
+
+In the Light Control window, switch the mode to **Screen**:
+
+- **Capture.** ScreenCaptureKit streams the chosen display at 160 px wide and up to 30 fps
+  (`SyncCore/ScreenCapture.swift`). Blask Sync's own windows are left out, so the editor doesn't sample itself.
+- **Mapping.** Each channel samples a screen region. Strip segments (solid, joined in physical order) and
+  lamps (dashed) can be dragged and resized over a live preview. Mappings are saved per area.
+- **Colors.** `ColorExtractor` averages each region. `ScreenSyncEngine` eases toward those colors at 50 Hz
+  with exponential smoothing; the time constant is set by **Intensity** (subtle 0.6 s … extreme 0.04 s).
+  The easing continues while the screen is static and no new frames arrive.
+
+The first time, macOS asks for **Screen Recording** permission, and the app has to be relaunched after
+you allow it. `scripts/bundle.sh` signs with an "Apple Development" certificate when one exists.
+With ad-hoc signing, the permission has to be granted again after every rebuild.
 
 The bridge's certificate is issued by Signify's private CA. The app accepts it only when its
 common name equals the bridge ID.
