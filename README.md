@@ -1,8 +1,10 @@
 # Blask Sync (macOS)
 
-A menu bar app that drives Philips Hue lights from screen content and system audio.
+A menu bar app that syncs Philips Hue lights with your screen, like an ambilight: strips behind the monitor
+follow its edges, and lamps around it pick up the mood of the picture.
 
-**Status:** bridge discovery, pairing, manual light control, and screen sync over the Entertainment streaming API.
+**Status:** bridge discovery and pairing, screen sync and manual light control over the Hue Entertainment
+streaming API. Music sync is planned.
 
 ## Requirements
 
@@ -13,75 +15,135 @@ A menu bar app that drives Philips Hue lights from screen content and system aud
 ## Build & run
 
 ```sh
-swift test                      # unit tests
-scripts/bundle.sh               # builds build/BlaskSync.app (ad-hoc signed)
+swift test             # unit tests
+scripts/bundle.sh      # builds and signs build/BlaskSync.app
 open build/BlaskSync.app
 ```
 
-`swift run` also works for quick iteration. The bundled app is what you'll need once screen
-recording and audio permissions come in, because macOS ties those to a bundle ID and signature.
+### Signing
+
+macOS ties the Keychain item holding the bridge credentials, and the Screen Recording permission, to the
+app's code signature. `scripts/bundle.sh` signs with `SIGN_IDENTITY` if set, else the first
+"Apple Development" certificate, else ad hoc.
+
+- **With a certificate** (add your Apple ID in Xcode → Settings → Accounts → Manage Certificates → Apple
+  Development), the permissions survive rebuilds.
+- **Ad hoc**, every rebuild is a new app to macOS: the Keychain asks for your password and Screen Recording
+  has to be granted again.
+
+If `security find-identity -v -p codesigning` lists no valid identity even though Xcode created a
+certificate, install Apple's [WWDR G3 intermediate](https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer).
+
+## Using it
+
+- **Menu bar.** If no bridge is paired, **Pair Bridge…** opens Settings. Once paired, the panel shows the
+  default area's status with **Start Sync / Stop Sync** and **Manual Control…**. The icon (a monitor with a
+  sparkle) fills in while the lights are driven.
+- **Settings (⌘,)**
+  - **General:** bridge discovery, pairing and forgetting, and the default entertainment area.
+  - **Screen:** the mapping canvas and an inspector with Capture (display, intensity), Color (brightness,
+    saturation boost, minimum brightness), the channel list and the selected channel's details. The live
+    preview runs while this tab is visible.
+- **Manual Control window.** Opening it switches the lights to the colors picked there and starts streaming
+  if needed. Closing it returns to screen sync if that was running, otherwise it releases the lights.
+
+The sync session belongs to the app, not to a window, so sync keeps running with all windows closed.
+
+## Screen sync
+
+- **Capture.** ScreenCaptureKit streams the chosen display at 160 px wide and up to 60 fps
+  (`SyncCore/ScreenCapture.swift`). Blask Sync's own windows are left out, so the editor doesn't sample
+  itself. Frames only arrive when the picture changes. DRM-protected video (e.g. Netflix, Apple TV+) is
+  captured as black.
+- **Mapping.** The canvas shows the screen inside the wall around it. Each channel has a region:
+  - **Strip segments** stay on the screen, drawn solid and joined in physical order.
+  - **Lamps** (dashed, with their icon) can sit on the screen or on the wall beside it. A lamp beside the
+    screen samples the nearest same-size screen area, and blends toward the whole screen's average the
+    further its center lies outside (1.2 × the distance in screen widths, capped at 80%).
+
+  Defaults project positions from the entertainment area: strip segments onto the nearest screen edge, and
+  lamps relative to the strip's extent, so a lamp outside the strip lands beside the screen. Layouts are
+  saved per area; **Reset Layout** restores the defaults.
+- **Colors.** `ColorExtractor` averages each region. `ColorAdjustment` then applies the **saturation boost**
+  (averages drift toward gray; this restores vividness, keeping hue and brightness) and the **minimum
+  brightness** (dark scenes glow faintly instead of switching off).
+- **Smoothing.** `ScreenSyncEngine` eases toward the latest colors at 50 Hz through two exponential stages,
+  an ease-in/ease-out curve rather than a jolt. **Intensity** sets the average delay: subtle 0.6 s,
+  moderate 0.3 s, high 0.18 s, extreme 0.1 s. Even Extreme covers the usual gap between captured frames, and
+  easing continues while the screen is static.
+
+The first time, macOS asks for **Screen Recording** permission, and the app has to be relaunched after you
+allow it.
+
+## Under the hood
+
+### Pairing
+
+1. Discovery browses `_hue._tcp` over mDNS, with `discovery.meethue.com` as a fallback. You can also enter an IP.
+2. **Pair** POSTs `{"devicetype": "blask-sync#<host>", "generateclientkey": true}` to `/api` every 2 s for
+   30 s while you press the bridge's link button.
+3. The returned `username` (the CLIP v2 application key) and `clientkey` (the DTLS PSK for streaming) go into
+   the login Keychain under the service `local.blasksync.bridge`.
+
+The bridge's certificate is issued by Signify's private CA. The app accepts it only when its common name
+equals the bridge ID. If the bridge gets a new IP from DHCP, the app finds it again by ID.
+
+Right after launch, macOS can briefly block local network access ("Local network prohibited", reported as
+error -1009 "offline"). Loading areas retries with backoff before reporting an error.
+
+### Strips and lamps
+
+`ChannelDescription` classifies channels from the bridge's own data: a light whose `entertainment` service
+has more than one segment is a gradient strip, and each channel member's `index` is its segment. Everything
+else is a lamp, with its archetype (`table_shade`, `hue_play`, …) picking the icon.
+
+### Streaming
+
+1. Starting sends `PUT /clip/v2/resource/entertainment_configuration/{id}` with `{"action": "start"}`, then
+   opens a DTLS 1.2 PSK session (`TLS_PSK_WITH_AES_128_GCM_SHA256`) to UDP port 2100. The PSK identity is the
+   application key and the key is the hex-decoded client key.
+2. Each channel's RGB color goes out as a HueStream v2 message at 50 Hz (`HueKit/EntertainmentStream.swift`).
+   Nothing is sent until there are real colors, so the lights keep their state instead of flashing a
+   placeholder. Capture starts while the stream connects.
+3. Stopping, or any graceful quit (menu, logout, shutdown, relaunch), sends `{"action": "stop"}` first, with a
+   2 s cap. The lights then return to their previous state. Without it, the bridge ends the session after
+   about 10 s without packets.
+4. While streaming or capturing, the app holds a latency-critical activity so App Nap doesn't throttle its timers.
+
+## Troubleshooting
+
+Diagnostics go to the unified log under the `local.blasksync` subsystem (zsh has a `log` builtin, so use the
+full path):
+
+```sh
+/usr/bin/log show --last 10m --style compact --predicate 'subsystem == "local.blasksync"'
+```
+
+| Category | Every 5 s / on event |
+|---|---|
+| `stream` | packets sent to the bridge: rate and largest gap (expect 50/s, no gaps over 50 ms) |
+| `screen-sync` | smoothing ticks and captured frames |
+| `capture` | ScreenCaptureKit buffers by status (`complete` / `idle` / …) and nearly black frames |
+| `bridge` | area loading retries |
+
+- **"Can't reach the Hue Bridge":** check that the Mac is on the bridge's network and that Blask Sync is
+  allowed in System Settings → Privacy & Security → Local Network.
+- **Lights hold a color, then jump:** compare against App Nap with
+  `defaults write local.blasksync.BlaskSync sync.allowAppNap -bool YES` (delete the key to restore).
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `Sources/HueKit` | UI-free bridge logic: mDNS + cloud discovery, pairing, CLIP v2, Keychain storage |
-| `Sources/BlaskSync` | SwiftUI `MenuBarExtra` app |
-| `Resources/Info.plist` | Bundle metadata (LSUIElement, local network usage, Bonjour service) |
-
-## Pairing flow
-
-1. Discovery browses `_hue._tcp` over mDNS (with `discovery.meethue.com` as a fallback). You can also enter an IP.
-2. **Pair** POSTs `{"devicetype": "blask-sync#<host>", "generateclientkey": true}` to `/api` every 2 s for 30 s
-   while you press the bridge's link button.
-3. The returned `username` (the CLIP v2 application key) and `clientkey` (the DTLS PSK for streaming)
-   go into the login Keychain under the service `local.blasksync.bridge`.
-
-## Using it
-
-- **Menu bar:** if no bridge is paired, **Pair Bridge…** opens Settings. Once paired, the panel shows the
-  default area with **Start Sync / Stop Sync** (screen sync) and **Manual Control…**. The icon (a monitor with a sparkle) fills in
-  while the lights are driven.
-- **Settings (⌘,):**
-  - **General:** bridge discovery, pairing and forgetting, and the default entertainment area.
-  - **Screen:** display, intensity, brightness and the mapping editor. The live preview runs while this tab is visible.
-- **Manual Control window:** opening it switches the lights to manual colors and starts streaming if needed.
-  Closing it returns to screen sync if that was running, otherwise it releases the lights.
-
-The sync session belongs to the app, not to a window, so sync keeps running with all windows closed.
-
-## Streaming
-
-1. Starting sends `PUT /clip/v2/resource/entertainment_configuration/{id}` with `{"action": "start"}`,
-   then opens a DTLS 1.2 PSK session (`TLS_PSK_WITH_AES_128_GCM_SHA256`) to UDP port 2100. The PSK identity
-   is the application key and the key is the hex-decoded client key.
-2. Each channel's RGB color goes out as a HueStream v2 message at 50 Hz (`HueKit/EntertainmentStream.swift`).
-3. Stopping, or any graceful quit (menu, logout, shutdown, relaunch), sends `{"action": "stop"}` first, with a 2 s cap. The lights then return to their previous state.
-4. While streaming or capturing, the app holds a latency-critical activity so App Nap doesn't throttle its timers.
-
-## Screen sync
-
-Configured in **Settings → Screen**, started from the menu bar:
-
-- **Capture.** ScreenCaptureKit streams the chosen display at 160 px wide and up to 60 fps
-  (`SyncCore/ScreenCapture.swift`). Blask Sync's own windows are left out, so the editor doesn't sample itself.
-- **Mapping.** Each channel samples a screen region. Strip segments (solid, joined in physical order) and
-  lamps (dashed) can be dragged and resized over a live preview. Mappings are saved per area.
-- **Colors.** `ColorExtractor` averages each region. `ScreenSyncEngine` eases toward those colors at 50 Hz
-  through two exponential stages, which gives an ease-in/ease-out curve instead of a jolt. **Intensity** sets the
-  average delay (subtle 0.6 s … extreme 0.1 s); even Extreme covers the usual gap between captured frames.
-  The easing continues while the screen is static and no new frames arrive.
-- **Adjustments.** **Saturation** pushes the averaged colors (which drift toward gray) toward vivid ones,
-  keeping hue and brightness. **Minimum brightness** keeps the lights glowing faintly in dark scenes.
-
-The first time, macOS asks for **Screen Recording** permission, and the app has to be relaunched after
-you allow it. `scripts/bundle.sh` signs with an "Apple Development" certificate when one exists.
-With ad-hoc signing, the permission has to be granted again after every rebuild.
-
-The bridge's certificate is issued by Signify's private CA. The app accepts it only when its
-common name equals the bridge ID.
+| `Sources/HueKit` | Hue protocol: discovery, pairing, CLIP v2, Keychain storage, strip/lamp classification, DTLS streaming |
+| `Sources/SyncCore` | Screen capture, screen mapping, color extraction, adjustments and smoothing. No UI code |
+| `Sources/BlaskSync` | The SwiftUI menu bar app, Settings and Manual Control windows |
+| `Tests/` | Unit tests for `HueKit` and `SyncCore` |
+| `Resources/` | `Info.plist` (LSUIElement, local network usage, Bonjour service) and `AppIcon.icns` |
+| `scripts/` | `bundle.sh` (build, bundle, sign), `make-icon.swift` and `make-icns.sh` (app icon) |
 
 ## App icon
 
-`scripts/make-icon.swift` draws the icon with CoreGraphics. `scripts/make-icns.sh` renders it at every
-macOS size into `Resources/AppIcon.icns`, which `scripts/bundle.sh` copies into the app.
+`scripts/make-icon.swift` draws the icon (a monitor with a spectrum halo and a sparkle) with CoreGraphics.
+`scripts/make-icns.sh` renders it at every macOS size into `Resources/AppIcon.icns`, which `bundle.sh` copies
+into the app. The menu bar icon is drawn in code in `Sources/BlaskSync/MenuBarIcon.swift`.
