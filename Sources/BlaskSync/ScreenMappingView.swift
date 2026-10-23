@@ -136,6 +136,8 @@ private struct MappingCanvas: View {
                             label: label(for: channel.id),
                             symbol: control.isLamp(channel.id) ? symbol(for: channel.id) : nil,
                             isSelected: selection == channel.id,
+                            // Mirrors the room: while identifying, the other lights are dimmed.
+                            isDimmed: control.identifiedChannel.map { $0 != channel.id } ?? false,
                             region: regionBinding(channel.id, fallback: region),
                             bounds: control.placementBounds(for: channel.id),
                             geometry: geometry,
@@ -293,12 +295,13 @@ private struct MappingCanvas: View {
     // MARK: Helpers
 
     /// The color the light sends now; a palette placeholder when nothing is live, so it never looks dead.
+    /// The light's live color while syncing; otherwise (and always while identifying) its identify
+    /// color, which is exactly what the real light shows then.
     private func color(for channel: UInt8) -> Color {
-        if let live = control.liveColors[channel] {
+        if control.identifiedChannel == nil, let live = control.liveColors[channel] {
             return live.fullBrightness.color
         }
-        let index = control.area.channels.firstIndex { $0.id == channel } ?? 0
-        return MusicPalette.vivid.color(at: Double(index) * 0.7).color
+        return control.identifyColor(for: channel).color
     }
 
     private func label(for channelId: UInt8) -> String {
@@ -326,6 +329,7 @@ private struct LightMarker: View {
     let label: String
     let symbol: String?
     let isSelected: Bool
+    let isDimmed: Bool
     @Binding var region: ScreenRegion
     let bounds: ScreenRegion.Bounds
     let geometry: CanvasGeometry
@@ -360,6 +364,7 @@ private struct LightMarker: View {
                 Circle().strokeBorder(Color.accentColor, lineWidth: 2).padding(-5)
             }
         }
+        .opacity(isDimmed ? 0.45 : 1)
         .contentShape(Circle().inset(by: -6))
         .onHover(perform: onHover)
         .onTapGesture(perform: onSelect)
@@ -532,7 +537,7 @@ private struct SelectedChannelDetails: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Toggle("Identify while moving", isOn: $identifying)
-                    .help("When you move or select a light, the real light shines white and the others go dark. If sync is off, the lights are taken over just for this, without capturing the screen.")
+                    .help("When you move or select a light, the real lights take the colors shown on the canvas, with that light bright and the others dim. If sync is off, the lights are taken over just for this, without capturing the screen.")
             }
         } else {
             Text("Select a channel on the canvas or in the list.")

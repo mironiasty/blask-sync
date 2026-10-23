@@ -459,10 +459,25 @@ final class LightControl {
 
     private var outputColors: [UInt8: LightColor] {
         if let identifiedChannel {
-            return Dictionary(uniqueKeysWithValues: colors.keys.map { ($0, $0 == identifiedChannel ? LightColor.white : .black) })
+            // The canvas colors, so lights and markers match; the identified one bright, the rest dim.
+            return Dictionary(uniqueKeysWithValues: colors.keys.map { channel in
+                let color = identifyColor(for: channel)
+                return (channel, channel == identifiedChannel ? color : color.scaled(by: Self.identifyDim))
+            })
         }
         // Manual colors carry their own brightness; the master brightness is for screen and music sync.
         return colors
+    }
+
+    /// Brightness of the other lights while one is identified.
+    private static let identifyDim = 0.2
+
+    /// A distinct color per channel, evenly spaced around the color wheel in channel order (a strip
+    /// becomes a rainbow). Shown on the canvas when nothing is live and on the real lights while
+    /// identifying, so the two match.
+    func identifyColor(for channel: UInt8) -> LightColor {
+        let index = area.channels.firstIndex { $0.id == channel } ?? 0
+        return LightColor(hue: Double(index) / Double(max(area.channels.count, 1)), saturation: 1, brightness: 1)
     }
 
     /// Whether the lights currently follow the screen or music (as opposed to manual colors or identify).
