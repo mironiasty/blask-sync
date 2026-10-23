@@ -81,3 +81,28 @@ struct AreaLightServicesTests {
         #expect(area.lightIds == ["light-1", "light-2"])
     }
 }
+
+struct HueColorTests {
+    @Test func primariesMapToKnownChromaticities() {
+        // Philips' wide-gamut matrix: pure red, green, blue and white in CIE xy.
+        let red = LightColor(red: 1, green: 0, blue: 0).hueState
+        #expect(abs(red.x - 0.7006) < 0.001 && abs(red.y - 0.2993) < 0.001)
+        let green = LightColor(red: 0, green: 1, blue: 0).hueState
+        #expect(abs(green.x - 0.1724) < 0.001 && abs(green.y - 0.7468) < 0.001)
+        let white = LightColor.white.hueState
+        #expect(abs(white.x - 0.3227) < 0.001 && abs(white.y - 0.329) < 0.001)
+    }
+
+    @Test func brightnessIsTheBrightestComponentAndKeepsChromaticity() {
+        let dim = LightColor(red: 0.5, green: 0, blue: 0).hueState
+        let full = LightColor(red: 1, green: 0, blue: 0).hueState
+        #expect(dim.brightness == 0.5)
+        #expect(abs(dim.x - full.x) < 1e-9 && abs(dim.y - full.y) < 1e-9)
+        #expect(LightColor.black.hueState.brightness == 0)
+    }
+
+    @Test func gradientSamplesSpreadEvenly() {
+        #expect(BridgeClient.gradientSamples(Array(0..<7), count: 5) == [0, 2, 3, 5, 6])
+        #expect(BridgeClient.gradientSamples(Array(0..<3), count: 5) == [0, 1, 2])
+    }
+}

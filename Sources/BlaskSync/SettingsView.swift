@@ -32,6 +32,7 @@ struct SettingsView: View {
 private struct GeneralSettings: View {
     let model: AppModel
     @State private var manualHost = ""
+    @AppStorage(LightControl.turnOffWhenStoppingKey) private var turnOffWhenStopping = false
 
     var body: some View {
         Form {
@@ -47,6 +48,13 @@ private struct GeneralSettings: View {
 
             if model.credentials != nil {
                 areaSection
+                Section {
+                    Toggle("Turn lights off when sync stops", isOn: $turnOffWhenStopping)
+                } header: {
+                    Text("When Sync Stops")
+                } footer: {
+                    Text("Applies to Stop Sync and to closing Manual Control. Otherwise the lights return to how they were before syncing. Turn Lights On in the menu bar uses your last manual colors.")
+                }
             }
 
             if let error = model.errorMessage {

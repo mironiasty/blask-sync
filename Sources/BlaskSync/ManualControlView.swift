@@ -138,7 +138,7 @@ struct SyncButton: View {
             .buttonStyle(.borderedProminent)
             .controlSize(large ? .large : .regular)
         case .streaming:
-            Button { Task { await control.stop() } } label: {
+            Button { Task { await control.stopSync() } } label: {
                 Label("Stop Sync", systemImage: "stop.fill")
                     .frame(maxWidth: large ? .infinity : nil)
             }

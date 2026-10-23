@@ -143,7 +143,8 @@ public final class BridgeClient: Sendable {
                 serviceId: service.id,
                 name: device.metadata.name,
                 archetype: lightId.flatMap { lightArchetypes[$0] } ?? device.metadata.archetype ?? "classic_bulb",
-                segmentCount: max(1, service.segments?.segments.count ?? 1)
+                segmentCount: max(1, service.segments?.segments.count ?? 1),
+                lightId: lightId
             )
         }
         return result
@@ -160,6 +161,33 @@ public final class BridgeClient: Sendable {
             }
             try await group.waitForAll()
         }
+    }
+
+    /// Switches a light on with a color, or a gradient for gradient lights (colors in order along the
+    /// light, at most 5 points), at the brightest color's brightness. All-black switches it off.
+    public func showColors(_ colors: [LightColor], onLight lightId: String, applicationKey: String) async throws {
+        let states = colors.map(\.hueState)
+        let brightness = states.map(\.brightness).max() ?? 0
+        var body: [String: Any]
+        if brightness <= 0 {
+            body = ["on": ["on": false]]
+        } else {
+            body = ["on": ["on": true], "dimming": ["brightness": min(100, max(1, brightness * 100))]]
+            func xy(_ state: HueLightState) -> [String: Any] { ["xy": ["x": state.x, "y": state.y]] }
+            if states.count > 1 {
+                body["gradient"] = ["points": Self.gradientSamples(states, count: 5).map { ["color": xy($0)] }]
+            } else if let state = states.first {
+                body["color"] = xy(state)
+            }
+        }
+        let data = try JSONSerialization.data(withJSONObject: body)
+        _ = try await send("PUT", "/clip/v2/resource/light/\(lightId)", body: data, applicationKey: applicationKey)
+    }
+
+    /// Up to `count` items spread evenly from first to last.
+    static func gradientSamples<T>(_ items: [T], count: Int) -> [T] {
+        guard items.count > count, count > 1 else { return items }
+        return (0..<count).map { items[Int((Double($0) * Double(items.count - 1) / Double(count - 1)).rounded())] }
     }
 
     /// Whether any of the given lights is switched on.

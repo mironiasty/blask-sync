@@ -89,7 +89,13 @@ struct MenuView: View {
         SyncButton(control: control, large: true)
 
         Button {
-            Task { await control.setPower(control.lightsOn == false) }
+            Task {
+                if control.lightsOn == false {
+                    await control.turnOnWithManualColors()
+                } else {
+                    await control.setPower(false)
+                }
+            }
         } label: {
             Label(control.lightsOn == false ? "Turn Lights On" : "Turn Lights Off", systemImage: "power")
                 .frame(maxWidth: .infinity)

@@ -270,6 +270,35 @@ final class LightControl {
         lightsOn = try? await BridgeClient(credentials: credentials).anyLightOn(area.lightIds, applicationKey: credentials.applicationKey)
     }
 
+    /// Switches the lights on showing the last manual colors, set directly on the lights (not streamed),
+    /// so they stay after the app quits: lamps get their color, gradient strips a gradient of their
+    /// segment colors. Falls back to a plain power-on when the lights aren't known yet.
+    func turnOnWithManualColors() async {
+        errorMessage = nil
+        var colorsByLight: [String: [(segment: Int, color: LightColor)]] = [:]
+        for channel in area.channels {
+            guard let color = colors[channel.id] else { continue }
+            for member in channel.members {
+                guard let lightId = channelDescriptions[channel.id]?.lights.first(where: { $0.serviceId == member.serviceId })?.lightId else { continue }
+                colorsByLight[lightId, default: []].append((member.index, color))
+            }
+        }
+        guard !colorsByLight.isEmpty else {
+            await setPower(true)
+            return
+        }
+        let client = BridgeClient(credentials: credentials)
+        do {
+            for (lightId, segments) in colorsByLight {
+                let ordered = segments.sorted { $0.segment < $1.segment }.map(\.color)
+                try await client.showColors(ordered, onLight: lightId, applicationKey: credentials.applicationKey)
+            }
+            lightsOn = colorsByLight.values.contains { $0.contains { $0.color.hueState.brightness > 0 } }
+        } catch {
+            errorMessage = "Couldn't turn the lights on: \(error.localizedDescription)"
+        }
+    }
+
     /// Really switches the area's lights on or off. Turning off first stops sync, Manual Control and
     /// identifying, since streaming would otherwise keep them lit.
     func setPower(_ on: Bool) async {
@@ -327,10 +356,22 @@ final class LightControl {
         if state == .stopped { await start() }
     }
 
+    /// Settings → General: switch the lights off when sync stops instead of restoring their previous state.
+    static let turnOffWhenStoppingKey = "sync.turnOffWhenStopping"
+
+    /// Stop Sync: ends streaming, then switches the lights off if that's the chosen behavior.
+    func stopSync() async {
+        if UserDefaults.standard.bool(forKey: Self.turnOffWhenStoppingKey) {
+            await setPower(false)
+        } else {
+            await stop()
+        }
+    }
+
     /// Returns to screen sync if it was running before, else releases the lights.
     func endManual() async {
         guard mode == .manual else { return }
-        if !resumeScreenAfterManual { await stop() }
+        if !resumeScreenAfterManual { await stopSync() }
         mode = syncSource.mode
     }
 

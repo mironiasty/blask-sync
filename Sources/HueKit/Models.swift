@@ -136,12 +136,15 @@ public struct EntertainmentLight: Hashable, Sendable {
     public let archetype: String
     /// Number of independently streamable segments: more than 1 for gradient strips.
     public let segmentCount: Int
+    /// The `light` resource, for regular (non-streaming) control.
+    public let lightId: String?
 
-    public init(serviceId: String, name: String, archetype: String, segmentCount: Int) {
+    public init(serviceId: String, name: String, archetype: String, segmentCount: Int, lightId: String? = nil) {
         self.serviceId = serviceId
         self.name = name
         self.archetype = archetype
         self.segmentCount = segmentCount
+        self.lightId = lightId
     }
 }
 
@@ -180,6 +183,14 @@ public struct ChannelDescription: Hashable, Sendable {
     }
 }
 
+/// The Hue API's color for regular light control: CIE xy chromaticity plus brightness.
+public struct HueLightState: Equatable, Sendable {
+    public let x: Double
+    public let y: Double
+    /// 0...1; the light's dimming level.
+    public let brightness: Double
+}
+
 /// An RGB light color with components in 0...1.
 public struct LightColor: Hashable, Sendable {
     public var red: Double
@@ -197,6 +208,23 @@ public struct LightColor: Hashable, Sendable {
 
     public func scaled(by factor: Double) -> LightColor {
         LightColor(red: red * factor, green: green * factor, blue: blue * factor)
+    }
+
+    /// Converts sRGB to CIE xy with Philips' wide-gamut matrix (the bridge clips to each light's gamut).
+    /// Brightness is the brightest component. Black maps to brightness 0.
+    public var hueState: HueLightState {
+        func linear(_ c: Double) -> Double {
+            c > 0.04045 ? pow((c + 0.055) / 1.055, 2.4) : c / 12.92
+        }
+        let brightness = max(red, green, blue)
+        guard brightness > 0 else { return HueLightState(x: 0.3127, y: 0.329, brightness: 0) }
+        // Chromaticity only depends on the color's ratios, so normalize before linearizing.
+        let r = linear(red / brightness), g = linear(green / brightness), b = linear(blue / brightness)
+        let X = r * 0.664511 + g * 0.154324 + b * 0.162028
+        let Y = r * 0.283881 + g * 0.668433 + b * 0.047685
+        let Z = r * 0.000088 + g * 0.072310 + b * 0.986039
+        let sum = X + Y + Z
+        return HueLightState(x: X / sum, y: Y / sum, brightness: brightness)
     }
 }
 
