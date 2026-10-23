@@ -30,13 +30,26 @@ struct ScreenMappingView: View {
             Inspector(control: control, selection: $selection, identifying: $identifying)
                 .frame(width: 280)
         }
-        .onChange(of: selection) { updateIdentify() }
+        .onAppear {
+            // Start with the light moved or selected last, so it's highlighted right away.
+            if selection == nil {
+                let channels = control.area.channels.map(\.id)
+                let saved = (UserDefaults.standard.object(forKey: selectionKey) as? Int).map(UInt8.init)
+                selection = saved.flatMap { channels.contains($0) ? $0 : nil } ?? channels.first(where: control.isLamp)
+            }
+        }
+        .onChange(of: selection) {
+            if let selection { UserDefaults.standard.set(Int(selection), forKey: selectionKey) }
+            updateIdentify()
+        }
         .onChange(of: identifying) { updateIdentify() }
         .onChange(of: control.state) {
             if control.state != .streaming { identifying = false }
         }
         .onDisappear { control.identifiedChannel = nil }
     }
+
+    private var selectionKey: String { "screenSelection.\(control.area.id)" }
 
     private func updateIdentify() {
         control.identifiedChannel = identifying ? selection : nil
