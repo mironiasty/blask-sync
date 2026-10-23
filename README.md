@@ -1,10 +1,11 @@
 # Blask Sync (macOS)
 
-A menu bar app that syncs Philips Hue lights with your screen, like an ambilight: strips behind the monitor
-follow its edges, and lamps around it pick up the mood of the picture.
+A menu bar app that syncs Philips Hue lights with your screen, like an ambilight, or with the music your
+Mac plays: strips behind the monitor follow its edges or ripple with the beat, and lamps around it pick up the
+mood.
 
-**Status:** bridge discovery and pairing, screen sync and manual light control over the Hue Entertainment
-streaming API. Music sync is planned.
+**Status:** bridge discovery and pairing, screen sync, music sync and manual light control over the Hue
+Entertainment streaming API.
 
 ## Requirements
 
@@ -37,13 +38,15 @@ certificate, install Apple's [WWDR G3 intermediate](https://www.apple.com/certif
 ## Using it
 
 - **Menu bar.** If no bridge is paired, **Pair Bridge…** opens Settings. Once paired, the panel shows the
-  default area's status with **Start Sync / Stop Sync** and **Manual Control…**. The icon (a monitor with a
+  default area's status, a **Screen / Music** choice, **Start Sync / Stop Sync** and **Manual Control…**. The icon (a monitor with a
   sparkle) fills in while the lights are driven.
 - **Settings (⌘,)**
   - **General:** bridge discovery, pairing and forgetting, and the default entertainment area.
   - **Screen:** the mapping canvas and an inspector with Capture (display, intensity), Color (brightness,
     saturation boost, minimum brightness), the channel list and the selected channel's details. The live
     preview runs while this tab is visible.
+  - **Music:** palette, intensity and brightness, with live level/bass/mid/high meters, a beat indicator and
+    the colors being sent.
 - **Manual Control window.** Opening it switches the lights to the colors picked there and starts streaming
   if needed. Closing it returns to screen sync if that was running, otherwise it releases the lights.
 
@@ -78,6 +81,20 @@ The sync session belongs to the app, not to a window, so sync keeps running with
 
 The first time, macOS asks for **Screen Recording** permission, and the app has to be relaunched after you
 allow it.
+
+## Music sync
+
+- **Capture.** A Core Audio process tap (`SyncCore/SystemAudioTap.swift`, macOS 14.2+) records everything the
+  Mac plays, without a virtual audio driver and without capturing the display, so it can run while the
+  Apple TV app plays a movie. macOS asks for **System Audio Recording** permission; if it's denied, the tap
+  delivers silence and the meters stay still.
+- **Analysis.** `AudioAnalyzer` runs a 1024-sample FFT (Accelerate) every ~11 ms: loudness and bass
+  (20-150 Hz) / mid (150-2000 Hz) / high (2-10 kHz) levels, each auto-gained against its own recent peak,
+  and beats when bass energy jumps 1.45× over its 0.5 s average (at least 0.25 s apart).
+- **Lights.** `MusicVisualizer` steps through a palette (Vivid, Sunset, Ocean, Party) on every beat and
+  drifts slowly in between. Strip segments show a moving gradient; lamps take a contrasting color and pulse
+  with the bass. Brightness follows loudness with a flash on each beat; **Intensity** sets how hard beats hit
+  and how fast they fade. Silence settles to a soft glow.
 
 ## Under the hood
 
@@ -129,6 +146,7 @@ full path):
 | `screen-sync` | smoothing ticks and captured frames |
 | `capture` | ScreenCaptureKit buffers by status (`complete` / `idle` / …) and nearly black frames |
 | `bridge` | area loading retries |
+| `audio` | audio tap start and peak level (permanently "silent" while music plays = no permission) |
 
 - **"Can't reach the Hue Bridge":** check that the Mac is on the bridge's network and that Blask Sync is
   allowed in System Settings → Privacy & Security → Local Network.
@@ -140,7 +158,7 @@ full path):
 | Path | What |
 |---|---|
 | `Sources/HueKit` | Hue protocol: discovery, pairing, CLIP v2, Keychain storage, strip/lamp classification, DTLS streaming |
-| `Sources/SyncCore` | Screen capture, screen mapping, color extraction, adjustments and smoothing. No UI code |
+| `Sources/SyncCore` | Screen and audio capture, screen mapping, color extraction, smoothing, audio analysis and the music visualizer. No UI code |
 | `Sources/BlaskSync` | The SwiftUI menu bar app, Settings and Manual Control windows |
 | `Tests/` | Unit tests for `HueKit` and `SyncCore` |
 | `Resources/` | `Info.plist` (LSUIElement, local network usage, Bonjour service) and `AppIcon.icns` |

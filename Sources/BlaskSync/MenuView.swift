@@ -72,6 +72,13 @@ struct MenuView: View {
                 .font(.callout)
         }
 
+        Picker("Sync with", selection: Binding(get: { control.syncSource }, set: { control.syncSource = $0 })) {
+            Label("Screen", systemImage: "display").tag(LightControl.SyncSource.screen)
+            Label("Music", systemImage: "music.note").tag(LightControl.SyncSource.music)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+
         SyncButton(control: control, large: true)
 
         Button {
@@ -83,7 +90,14 @@ struct MenuView: View {
         }
         .controlSize(.large)
 
-        CaptureStatusBanner(control: control, compact: true)
+        if control.syncSource == .screen {
+            CaptureStatusBanner(control: control, compact: true)
+        } else if let error = control.musicError {
+            Text(error)
+                .font(.callout)
+                .foregroundStyle(.red)
+                .fixedSize(horizontal: false, vertical: true)
+        }
 
         if let error = control.errorMessage {
             Text(error)

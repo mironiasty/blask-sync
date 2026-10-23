@@ -11,6 +11,8 @@ struct SettingsView: View {
                 .tabItem { Label("General", systemImage: "gearshape") }
             ScreenSettings(model: model)
                 .tabItem { Label("Screen", systemImage: "display") }
+            MusicSettings(model: model)
+                .tabItem { Label("Music", systemImage: "music.note") }
         }
     }
 }

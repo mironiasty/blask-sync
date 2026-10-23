@@ -155,19 +155,19 @@ public final class MusicSyncEngine: @unchecked Sendable {
     private let settings: OSAllocatedUnfairLock<Settings>
     /// Latest features plus the strongest beat not yet shown.
     private let latest = OSAllocatedUnfairLock(initialState: (features: AudioFeatures.silent, beat: Double?.none))
-    private let output: @Sendable ([UInt8: LightColor], AudioFeatures) -> Void
+    private let output: @Sendable ([UInt8: LightColor], AudioFeatures, Bool) -> Void
     private let queue = DispatchQueue(label: "blask.music-sync", qos: .userInteractive)
     private var analyzer: AudioAnalyzer?
     private var visualizer: MusicVisualizer
     private var timer: DispatchSourceTimer?
 
-    /// - Parameter output: Called on the engine's queue 50 times a second with brightness-scaled colors
-    ///   and the features they came from.
+    /// - Parameter output: Called on the engine's queue 50 times a second with brightness-scaled colors,
+    ///   the features they came from, and whether a beat landed since the last call.
     public init(
         settings: Settings,
         stripChannels: [UInt8],
         lampChannels: [UInt8],
-        output: @escaping @Sendable ([UInt8: LightColor], AudioFeatures) -> Void
+        output: @escaping @Sendable ([UInt8: LightColor], AudioFeatures, Bool) -> Void
     ) {
         self.settings = OSAllocatedUnfairLock(initialState: settings)
         visualizer = MusicVisualizer(stripChannels: stripChannels, lampChannels: lampChannels)
@@ -222,6 +222,6 @@ public final class MusicSyncEngine: @unchecked Sendable {
             settings: settings.visualizer,
             now: ProcessInfo.processInfo.systemUptime
         )
-        output(colors.mapValues { $0.scaled(by: settings.brightness) }, features)
+        output(colors.mapValues { $0.scaled(by: settings.brightness) }, features, beat != nil)
     }
 }

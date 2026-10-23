@@ -14,7 +14,14 @@ final class LightControl {
     }
 
     enum Mode: String {
-        case manual, screen
+        case manual, screen, music
+    }
+
+    /// What sync follows when started from the menu.
+    enum SyncSource: String, CaseIterable {
+        case screen, music
+
+        var mode: Mode { self == .screen ? .screen : .music }
     }
 
     enum CaptureState: Equatable {
@@ -32,6 +39,7 @@ final class LightControl {
         didSet {
             pushColors()
             updateEngine()
+            updateMusicEngine()
         }
     }
     /// Screen region each channel samples in screen sync. Saved per area.
@@ -54,12 +62,42 @@ final class LightControl {
         didSet {
             guard mode != oldValue else { return }
             routeOutput()
-            updateCapture()
+            updateEngines()
         }
     }
+    /// Set while the music settings are visible, so the meters run without streaming.
+    var musicPreviewing = false {
+        didSet { updateMusic() }
+    }
+    /// Screen or music; switching while syncing switches live.
+    var syncSource: SyncSource {
+        didSet {
+            UserDefaults.standard.set(syncSource.rawValue, forKey: Keys.syncSource)
+            if mode != .manual, mode != syncSource.mode { mode = syncSource.mode }
+        }
+    }
+    var musicPalette: MusicPalette {
+        didSet {
+            UserDefaults.standard.set(musicPalette.rawValue, forKey: Keys.musicPalette)
+            updateMusicEngine()
+        }
+    }
+    var musicIntensity: SyncIntensity {
+        didSet {
+            UserDefaults.standard.set(musicIntensity.rawValue, forKey: Keys.musicIntensity)
+            updateMusicEngine()
+        }
+    }
+    /// Latest audio analysis and music colors, refreshed ~10×/s while music sync or its meters run.
+    private(set) var audioFeatures = AudioFeatures.silent
+    private(set) var musicColors: [UInt8: LightColor] = [:]
+    /// When the last beat landed, for the beat indicator.
+    private(set) var lastBeat: Date?
+    private(set) var musicError: String?
+
     /// Set while the screen settings are visible, so the preview runs without streaming.
     var previewing = false {
-        didSet { updateCapture() }
+        didSet { updateEngines() }
     }
     private(set) var displays: [DisplayInfo] = DisplayInfo.all()
     var selectedDisplayID: CGDirectDisplayID {
@@ -120,6 +158,10 @@ final class LightControl {
     /// Where the screen sync engine sends colors: the stream while it should follow the screen, else nil.
     /// Read on the engine's queue, so it lives outside the main actor.
     private let screenSink = OSAllocatedUnfairLock<EntertainmentStream?>(initialState: nil)
+    /// Same for the music engine.
+    private let musicSink = OSAllocatedUnfairLock<EntertainmentStream?>(initialState: nil)
+    private var audioTap: SystemAudioTap?
+    private var musicEngine: MusicSyncEngine?
 
     private static let logger = Logger(subsystem: "local.blasksync", category: "capture")
 
@@ -143,6 +185,9 @@ final class LightControl {
         static let saturationBoost = "sync.saturationBoost"
         static let minimumBrightness = "sync.minimumBrightness"
         static let pauseForProtectedApps = "sync.pauseForProtectedApps"
+        static let syncSource = "sync.source"
+        static let musicPalette = "sync.musicPalette"
+        static let musicIntensity = "sync.musicIntensity"
     }
 
     init(area: EntertainmentArea, credentials: BridgeCredentials) {
@@ -156,6 +201,9 @@ final class LightControl {
         saturationBoost = defaults.object(forKey: Keys.saturationBoost) as? Double ?? 0.3
         minimumBrightness = defaults.object(forKey: Keys.minimumBrightness) as? Double ?? 0
         pauseForProtectedApps = defaults.object(forKey: Keys.pauseForProtectedApps) as? Bool ?? true
+        syncSource = defaults.string(forKey: Keys.syncSource).flatMap(SyncSource.init) ?? .screen
+        musicPalette = defaults.string(forKey: Keys.musicPalette).flatMap(MusicPalette.init) ?? .vivid
+        musicIntensity = defaults.string(forKey: Keys.musicIntensity).flatMap(SyncIntensity.init) ?? .high
         let savedDisplay = CGDirectDisplayID(defaults.integer(forKey: Keys.displayID))
         selectedDisplayID = DisplayInfo.all().contains { $0.id == savedDisplay } ? savedDisplay : CGMainDisplayID()
 
@@ -177,21 +225,23 @@ final class LightControl {
             self.activationObserver = nil
         }
         previewing = false
+        musicPreviewing = false
         await stop()
         await stopCapture()
+        stopMusic()
     }
 
     var isStreaming: Bool { stream != nil }
 
     // MARK: Sync control
 
-    /// Starts streaming with the lights following the screen.
-    func startScreenSync() async {
-        guard ScreenCapture.hasPermission else {
+    /// Starts streaming with the lights following the chosen source.
+    func startSync() async {
+        if syncSource == .screen, !ScreenCapture.hasPermission {
             captureState = .needsPermission
             return
         }
-        mode = .screen
+        mode = syncSource.mode
         await start()
     }
 
@@ -207,7 +257,7 @@ final class LightControl {
     func endManual() async {
         guard mode == .manual else { return }
         if !resumeScreenAfterManual { await stop() }
-        mode = .screen
+        mode = syncSource.mode
     }
 
     func loadLights() async {
@@ -221,6 +271,11 @@ final class LightControl {
             // Never customized: now that lamps are known, place them beside the screen where they belong.
             if mappingStore.load(areaId: area.id) == nil {
                 resetMapping()
+            }
+            // The music engine needs to know which channels are strips and which are lamps.
+            if musicEngine != nil {
+                stopMusic()
+                updateMusic()
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -273,13 +328,13 @@ final class LightControl {
         state = .starting
         errorMessage = nil
         // Start capturing while the stream connects, so screen colors are ready when it's up.
-        updateCapture()
+        updateEngines()
         let stream = EntertainmentStream(
             credentials: credentials,
             areaId: area.id,
             // Screen mode never falls back to the manual colors (white by default): with no screen
             // colors yet, the stream waits and the lights keep their current state.
-            initialColors: followsScreen ? liveColors : outputColors,
+            initialColors: followsSync ? (mode == .music ? musicColors : liveColors) : outputColors,
             onFailure: { [weak self] error in
                 Task { @MainActor in self?.streamDropped(error) }
             }
@@ -296,11 +351,11 @@ final class LightControl {
             state = .streaming
             routeOutput()
             updateActivity()
-            updateCapture()
+            updateEngines()
         } catch {
             state = .stopped
             errorMessage = "Couldn't start streaming: \(error.localizedDescription)"
-            updateCapture()
+            updateEngines()
         }
     }
 
@@ -316,7 +371,7 @@ final class LightControl {
         state = .stopping
         await stream.stop()
         state = .stopped
-        updateCapture()
+        updateEngines()
     }
 
     private func streamDropped(_ error: Error) {
@@ -325,7 +380,7 @@ final class LightControl {
         routeOutput()
         updateActivity()
         state = .stopped
-        updateCapture()
+        updateEngines()
         errorMessage = "Streaming stopped: \(error.localizedDescription)"
         Task { await stream.stop() }
     }
@@ -337,19 +392,19 @@ final class LightControl {
         return colors.mapValues { $0.scaled(by: brightness) }
     }
 
-    /// Whether the lights currently follow the screen (as opposed to manual colors or identify).
-    private var followsScreen: Bool {
-        mode == .screen && identifiedChannel == nil
+    /// Whether the lights currently follow the screen or music (as opposed to manual colors or identify).
+    private var followsSync: Bool {
+        mode != .manual && identifiedChannel == nil
     }
 
     private func pushColors() {
-        guard !followsScreen else { return }
+        guard !followsSync else { return }
         stream?.setColors(outputColors)
     }
 
     private func updateActivity() {
         // Debug switch to compare against App Nap: `defaults write local.blasksync.BlaskSync sync.allowAppNap -bool YES`
-        let needed = (stream != nil || capture != nil) && !UserDefaults.standard.bool(forKey: "sync.allowAppNap")
+        let needed = (stream != nil || capture != nil || audioTap != nil) && !UserDefaults.standard.bool(forKey: "sync.allowAppNap")
         if needed, activity == nil {
             activity = ProcessInfo.processInfo.beginActivity(
                 options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
@@ -361,10 +416,77 @@ final class LightControl {
         }
     }
 
+    /// Points the screen and music engines at the stream; only the one matching the mode drives the lights.
     private func routeOutput() {
-        let target = followsScreen ? stream : nil
-        screenSink.withLock { $0 = target }
+        let screenTarget = followsSync && mode == .screen ? stream : nil
+        let musicTarget = followsSync && mode == .music ? stream : nil
+        screenSink.withLock { $0 = screenTarget }
+        musicSink.withLock { $0 = musicTarget }
         pushColors()
+    }
+
+    // MARK: Music
+
+    /// Music analysis runs for the meters, or while streaming follows the music.
+    private var musicNeeded: Bool {
+        musicPreviewing || (mode == .music && state != .stopped)
+    }
+
+    private func updateMusic() {
+        musicNeeded ? startMusic() : stopMusic()
+    }
+
+    private var musicEngineSettings: MusicSyncEngine.Settings {
+        MusicSyncEngine.Settings(palette: musicPalette, intensity: musicIntensity, brightness: brightness)
+    }
+
+    private func updateMusicEngine() {
+        musicEngine?.update(musicEngineSettings)
+    }
+
+    private func startMusic() {
+        guard musicNeeded, musicEngine == nil else { return }
+        musicError = nil
+
+        let stripChannels = strips.isEmpty ? area.channels.map(\.id) : strips.flatMap(\.channels)
+        let lampChannels = area.channels.map(\.id).filter { !stripChannels.contains($0) }
+        let preview = Throttle(interval: 0.1)
+        let engine = MusicSyncEngine(settings: musicEngineSettings, stripChannels: stripChannels, lampChannels: lampChannels) {
+            [musicSink, weak self] colors, features, beat in
+            musicSink.withLock { $0 }?.setColors(colors)
+            if beat {
+                Task { @MainActor in self?.lastBeat = Date() }
+            }
+            if preview.ready() {
+                Task { @MainActor in
+                    self?.audioFeatures = features
+                    self?.musicColors = colors
+                }
+            }
+        }
+        let tap = SystemAudioTap { samples, sampleRate in
+            engine.process(samples, sampleRate: sampleRate)
+        }
+        do {
+            try tap.start()
+        } catch {
+            musicError = error.localizedDescription
+            return
+        }
+        engine.start()
+        musicEngine = engine
+        audioTap = tap
+        updateActivity()
+    }
+
+    private func stopMusic() {
+        audioTap?.stop()
+        audioTap = nil
+        musicEngine?.stop()
+        musicEngine = nil
+        audioFeatures = .silent
+        musicColors = [:]
+        updateActivity()
     }
 
     // MARK: Screen capture
@@ -372,7 +494,7 @@ final class LightControl {
     func requestScreenPermission() {
         if ScreenCapture.requestPermission() {
             captureState = .idle
-            updateCapture()
+            updateEngines()
         } else {
             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
         }
@@ -405,7 +527,8 @@ final class LightControl {
         previewing || (mode == .screen && state != .stopped)
     }
 
-    private func updateCapture() {
+    private func updateEngines() {
+        updateMusic()
         Task {
             if captureNeeded {
                 await startCapture()

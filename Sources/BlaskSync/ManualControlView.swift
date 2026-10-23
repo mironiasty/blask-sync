@@ -69,7 +69,12 @@ struct SyncStatusLabel: View {
     private var color: Color {
         switch control.state {
         case .streaming where control.mode == .screen && control.pausedForApp != nil: .purple
-        case .streaming: control.mode == .screen ? .green : .orange
+        case .streaming:
+            switch control.mode {
+            case .screen: .green
+            case .music: .pink
+            case .manual: .orange
+            }
         case .starting, .stopping: .yellow
         case .stopped: .secondary.opacity(0.5)
         }
@@ -79,7 +84,12 @@ struct SyncStatusLabel: View {
         switch control.state {
         case .streaming where control.mode == .screen && control.pausedForApp != nil:
             "Paused while \(control.pausedForApp ?? "") is in front"
-        case .streaming: control.mode == .screen ? "Syncing with screen" : "Manual control"
+        case .streaming:
+            switch control.mode {
+            case .screen: "Syncing with screen"
+            case .music: "Syncing with music"
+            case .manual: "Manual control"
+            }
         case .starting: "Connecting…"
         case .stopping: "Stopping…"
         case .stopped: "Off"
@@ -87,7 +97,7 @@ struct SyncStatusLabel: View {
     }
 }
 
-/// Starts or stops screen sync.
+/// Starts or stops sync with the chosen source.
 struct SyncButton: View {
     let control: LightControl
     var large = false
@@ -95,7 +105,7 @@ struct SyncButton: View {
     var body: some View {
         switch control.state {
         case .stopped:
-            Button { Task { await control.startScreenSync() } } label: {
+            Button { Task { await control.startSync() } } label: {
                 Label("Start Sync", systemImage: "play.fill")
                     .frame(maxWidth: large ? .infinity : nil)
             }

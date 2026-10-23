@@ -22,6 +22,8 @@
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Blask Sync finds and controls your Hue Bridge on the local network.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Blask Sync listens to the music your Mac plays to make your lights react to it. Audio never leaves your Mac.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_hue._tcp</string>
