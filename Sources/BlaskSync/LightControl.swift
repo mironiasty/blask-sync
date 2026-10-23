@@ -49,20 +49,24 @@ final class LightControl {
 
     // MARK: Screen sync state
 
-    var mode: Mode {
+    /// What the lights follow while streaming. Manual while the Manual Control window is open.
+    private(set) var mode: Mode = .screen {
         didSet {
             guard mode != oldValue else { return }
-            UserDefaults.standard.set(mode.rawValue, forKey: Keys.mode)
             routeOutput()
-            Task { mode == .screen ? await startCapture() : await stopCapture() }
+            updateCapture()
         }
+    }
+    /// Set while the screen settings are visible, so the preview runs without streaming.
+    var previewing = false {
+        didSet { updateCapture() }
     }
     private(set) var displays: [DisplayInfo] = DisplayInfo.all()
     var selectedDisplayID: CGDirectDisplayID {
         didSet {
             guard selectedDisplayID != oldValue else { return }
             UserDefaults.standard.set(Int(selectedDisplayID), forKey: Keys.displayID)
-            Task { await restartCapture() }
+            if capture != nil { Task { await restartCapture() } }
         }
     }
     var intensity: SyncIntensity {
@@ -92,8 +96,10 @@ final class LightControl {
     /// Read on the engine's queue, so it lives outside the main actor.
     private let screenSink = OSAllocatedUnfairLock<EntertainmentStream?>(initialState: nil)
 
+    /// Whether screen sync was running when Manual Control opened, to resume it afterwards.
+    private var resumeScreenAfterManual = false
+
     private enum Keys {
-        static let mode = "sync.mode"
         static let displayID = "sync.displayID"
         static let intensity = "sync.intensity"
     }
@@ -105,23 +111,45 @@ final class LightControl {
         mapping = (mappingStore.load(areaId: area.id) ?? .defaults(for: area.channels)).reconciled(with: area.channels)
 
         let defaults = UserDefaults.standard
-        mode = defaults.string(forKey: Keys.mode).flatMap(Mode.init) ?? .manual
         intensity = defaults.string(forKey: Keys.intensity).flatMap(SyncIntensity.init) ?? .moderate
         let savedDisplay = CGDirectDisplayID(defaults.integer(forKey: Keys.displayID))
         selectedDisplayID = DisplayInfo.all().contains { $0.id == savedDisplay } ? savedDisplay : CGMainDisplayID()
     }
 
-    /// Called when the window appears.
-    func activate() async {
-        displays = DisplayInfo.all()
-        if mode == .screen { await startCapture() }
-        await loadLights()
+    /// Releases the lights and stops capturing, e.g. before quitting or switching areas.
+    func shutdown() async {
+        previewing = false
+        await stop()
+        await stopCapture()
     }
 
-    /// Called when the window closes: releases the lights and stops capturing.
-    func deactivate() async {
-        await stopCapture()
-        await stop()
+    var isStreaming: Bool { stream != nil }
+
+    // MARK: Sync control
+
+    /// Starts streaming with the lights following the screen.
+    func startScreenSync() async {
+        guard ScreenCapture.hasPermission else {
+            captureState = .needsPermission
+            return
+        }
+        mode = .screen
+        await start()
+    }
+
+    /// Switches to manual colors, streaming if needed. Called when the Manual Control window opens.
+    func beginManual() async {
+        guard mode != .manual else { return }
+        resumeScreenAfterManual = isStreaming || state == .starting
+        mode = .manual
+        if state == .stopped { await start() }
+    }
+
+    /// Returns to screen sync if it was running before, else releases the lights.
+    func endManual() async {
+        guard mode == .manual else { return }
+        if !resumeScreenAfterManual { await stop() }
+        mode = .screen
     }
 
     func loadLights() async {
@@ -191,9 +219,11 @@ final class LightControl {
             state = .streaming
             routeOutput()
             updateActivity()
+            updateCapture()
         } catch {
             state = .stopped
             errorMessage = "Couldn't start streaming: \(error.localizedDescription)"
+            updateCapture()
         }
     }
 
@@ -209,6 +239,7 @@ final class LightControl {
         state = .stopping
         await stream.stop()
         state = .stopped
+        updateCapture()
     }
 
     private func streamDropped(_ error: Error) {
@@ -217,6 +248,7 @@ final class LightControl {
         routeOutput()
         updateActivity()
         state = .stopped
+        updateCapture()
         errorMessage = "Streaming stopped: \(error.localizedDescription)"
         Task { await stream.stop() }
     }
@@ -262,7 +294,8 @@ final class LightControl {
 
     func requestScreenPermission() {
         if ScreenCapture.requestPermission() {
-            Task { await startCapture() }
+            captureState = .idle
+            updateCapture()
         } else {
             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
         }
@@ -285,8 +318,23 @@ final class LightControl {
         engine?.update(engineSettings)
     }
 
+    /// Capture runs for the settings preview, or while streaming follows the screen.
+    private var captureNeeded: Bool {
+        previewing || (mode == .screen && state != .stopped)
+    }
+
+    private func updateCapture() {
+        Task {
+            if captureNeeded {
+                await startCapture()
+            } else {
+                await stopCapture()
+            }
+        }
+    }
+
     private func startCapture() async {
-        guard mode == .screen, capture == nil else { return }
+        guard captureNeeded, capture == nil else { return }
         guard ScreenCapture.hasPermission else {
             captureState = .needsPermission
             return
@@ -317,9 +365,14 @@ final class LightControl {
         engine.start()
         do {
             try await capture.start(displayID: selectedDisplayID)
-            // Mode switched back or capture restarted while starting.
+            // Stopped or restarted while starting: this capture is orphaned.
             guard self.capture === capture else {
                 await capture.stop()
+                return
+            }
+            // Still current, but no longer needed.
+            guard captureNeeded else {
+                await stopCapture()
                 return
             }
             captureState = .capturing

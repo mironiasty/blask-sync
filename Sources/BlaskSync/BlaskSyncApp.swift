@@ -6,13 +6,20 @@ struct BlaskSyncApp: App {
     @State private var model = AppModel()
 
     var body: some Scene {
-        MenuBarExtra("Blask Sync", systemImage: "lightbulb.led") {
+        MenuBarExtra {
             MenuView(model: model)
+        } label: {
+            // Filled while the lights are being driven.
+            Image(systemName: model.lightControl?.isStreaming == true ? "lightbulb.led.fill" : "lightbulb.led")
         }
         .menuBarExtraStyle(.window)
 
-        Window("Light Control", id: LightControlView.windowId) {
-            LightControlView(model: model)
+        Settings {
+            SettingsView(model: model)
+        }
+
+        Window("Manual Control", id: ManualControlView.windowId) {
+            ManualControlView(model: model)
         }
         .windowResizability(.contentMinSize)
     }

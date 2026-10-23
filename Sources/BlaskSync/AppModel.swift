@@ -15,9 +15,19 @@ final class AppModel {
     private(set) var pairing: PairingState = .idle
     private(set) var credentials: BridgeCredentials?
     private(set) var areas: [EntertainmentArea] = []
-    /// The area open in the Light Control window.
+    /// The entertainment area Blask Sync drives. Saved across launches.
+    var defaultAreaId: String? {
+        didSet {
+            guard defaultAreaId != oldValue else { return }
+            UserDefaults.standard.set(defaultAreaId, forKey: Self.defaultAreaKey)
+            updateLightControl()
+        }
+    }
+    /// Sync session for the default area; lives as long as the app, independent of any window.
     private(set) var lightControl: LightControl?
     var errorMessage: String?
+
+    private static let defaultAreaKey = "defaultAreaId"
 
     private let store = CredentialStore()
     private var pairingTask: Task<Void, Never>?
@@ -30,6 +40,7 @@ final class AppModel {
     }()
 
     init() {
+        defaultAreaId = UserDefaults.standard.string(forKey: Self.defaultAreaKey)
         do {
             credentials = try store.load()
         } catch {
@@ -118,32 +129,54 @@ final class AppModel {
         }
         credentials = nil
         areas = []
-        let control = lightControl
-        lightControl = nil
-        Task {
-            await control?.stop()
-            await discover()
-        }
+        updateLightControl()
+        Task { await discover() }
     }
 
     // MARK: Light control
 
-    func openLightControl(for area: EntertainmentArea) {
-        guard let credentials, lightControl?.area.id != area.id else { return }
+    var defaultArea: EntertainmentArea? {
+        areas.first { $0.id == defaultAreaId }
+    }
+
+    /// Keeps `lightControl` in step with the paired bridge and default area. An existing session
+    /// survives area refreshes, so streaming isn't interrupted.
+    private func updateLightControl() {
+        guard let credentials, let area = defaultArea else {
+            replaceLightControl(with: nil)
+            return
+        }
+        guard lightControl?.area.id != area.id else { return }
+        replaceLightControl(with: LightControl(area: area, credentials: credentials))
+    }
+
+    private func replaceLightControl(with control: LightControl?) {
         let previous = lightControl
-        lightControl = LightControl(area: area, credentials: credentials)
-        Task { await previous?.stop() }
+        lightControl = control
+        Task {
+            await previous?.shutdown()
+            await control?.loadLights()
+        }
     }
 
     /// Releases the streaming session before quitting; otherwise the bridge holds the lights for ~10 s.
     func quit() async {
-        await lightControl?.stop()
+        await lightControl?.shutdown()
         NSApplication.shared.terminate(nil)
     }
 
     // MARK: Paired bridge
 
     func refreshAreas() async {
+        await fetchAreas()
+        // First run: default to the first screen area, which is what screen sync is meant for.
+        if defaultArea == nil, !areas.isEmpty {
+            defaultAreaId = (areas.first { $0.configurationType == "screen" } ?? areas.first)?.id
+        }
+        updateLightControl()
+    }
+
+    private func fetchAreas() async {
         guard let credentials else { return }
         errorMessage = nil
         do {

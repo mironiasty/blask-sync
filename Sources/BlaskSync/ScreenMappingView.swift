@@ -257,8 +257,11 @@ private struct ChannelList: View {
 
 // MARK: Capture status
 
-private struct CaptureStatusBanner: View {
+/// Explains why screen capture isn't running, with a way to fix it.
+struct CaptureStatusBanner: View {
     let control: LightControl
+    /// Stacks the buttons under the message, for narrow spaces like the menu bar panel.
+    var compact = false
 
     var body: some View {
         switch control.captureState {
@@ -278,7 +281,7 @@ private struct CaptureStatusBanner: View {
     }
 
     private func banner(_ message: String, detail: String?, @ViewBuilder actions: () -> some View) -> some View {
-        HStack(alignment: .top) {
+        let text = HStack(alignment: .top) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
             VStack(alignment: .leading, spacing: 2) {
                 Text(message)
@@ -286,8 +289,21 @@ private struct CaptureStatusBanner: View {
                     Text(detail).font(.callout).foregroundStyle(.secondary)
                 }
             }
-            Spacer()
-            actions()
+            .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        return Group {
+            if compact {
+                VStack(alignment: .leading, spacing: 8) {
+                    text
+                    HStack { actions() }
+                }
+            } else {
+                HStack(alignment: .top) {
+                    text
+                    actions()
+                }
+            }
         }
         .padding(10)
         .background(.yellow.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))

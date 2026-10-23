@@ -37,19 +37,31 @@ recording and audio permissions come in, because macOS ties those to a bundle ID
 3. The returned `username` (the CLIP v2 application key) and `clientkey` (the DTLS PSK for streaming)
    go into the login Keychain under the service `local.blasksync.bridge`.
 
-## Manual light control
+## Using it
 
-Choosing **Control…** next to an entertainment area in the menu opens the Light Control window:
+- **Menu bar:** if no bridge is paired, **Pair Bridge…** opens Settings. Once paired, the panel shows the
+  default area with **Start Sync / Stop Sync** (screen sync) and **Manual Control…**. The icon fills in
+  while the lights are driven.
+- **Settings (⌘,):**
+  - **General:** bridge discovery, pairing and forgetting, and the default entertainment area.
+  - **Screen:** display, intensity, brightness and the mapping editor. The live preview runs while this tab is visible.
+- **Manual Control window:** opening it switches the lights to manual colors and starts streaming if needed.
+  Closing it returns to screen sync if that was running, otherwise it releases the lights.
 
-1. **Start Streaming** sends `PUT /clip/v2/resource/entertainment_configuration/{id}` with `{"action": "start"}`,
+The sync session belongs to the app, not to a window, so sync keeps running with all windows closed.
+
+## Streaming
+
+1. Starting sends `PUT /clip/v2/resource/entertainment_configuration/{id}` with `{"action": "start"}`,
    then opens a DTLS 1.2 PSK session (`TLS_PSK_WITH_AES_128_GCM_SHA256`) to UDP port 2100. The PSK identity
    is the application key and the key is the hex-decoded client key.
 2. Each channel's RGB color goes out as a HueStream v2 message at 50 Hz (`HueKit/EntertainmentStream.swift`).
-3. **Stop**, closing the window, or quitting sends `{"action": "stop"}`. The lights then return to their previous state.
+3. Stopping or quitting sends `{"action": "stop"}`. The lights then return to their previous state.
+4. While streaming or capturing, the app holds a latency-critical activity so App Nap doesn't throttle its timers.
 
 ## Screen sync
 
-In the Light Control window, switch the mode to **Screen**:
+Configured in **Settings → Screen**, started from the menu bar:
 
 - **Capture.** ScreenCaptureKit streams the chosen display at 160 px wide and up to 30 fps
   (`SyncCore/ScreenCapture.swift`). Blask Sync's own windows are left out, so the editor doesn't sample itself.

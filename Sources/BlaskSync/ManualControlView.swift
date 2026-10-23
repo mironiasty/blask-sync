@@ -1,97 +1,120 @@
 import HueKit
 import SwiftUI
 
-/// Contents of the "Light Control" window.
-struct LightControlView: View {
-    static let windowId = "light-control"
+/// The "Manual Control" window. While open, the lights show the colors picked here.
+struct ManualControlView: View {
+    static let windowId = "manual-control"
 
     let model: AppModel
 
     var body: some View {
         if let control = model.lightControl {
-            LightControlPanel(control: control)
-                // A fresh panel (and stream state) per area.
+            ManualControlPanel(control: control)
                 .id(control.area.id)
         } else {
             ContentUnavailableView(
                 "No Area Selected",
                 systemImage: "lightbulb.2",
-                description: Text("Choose an entertainment area from the menu bar.")
+                description: Text("Choose an entertainment area in Settings.")
             )
             .frame(width: 400, height: 300)
         }
     }
 }
 
-private struct LightControlPanel: View {
-    @Bindable var control: LightControl
-
-    var body: some View {
-        VStack(spacing: 0) {
-            StreamingHeader(control: control)
-                .padding()
-            Picker("Mode", selection: $control.mode) {
-                Text("Manual").tag(LightControl.Mode.manual)
-                Text("Screen").tag(LightControl.Mode.screen)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            Group {
-                switch control.mode {
-                case .manual: ColorsTab(control: control)
-                case .screen: ScreenMappingView(control: control)
-                }
-            }
-            .padding([.horizontal, .bottom])
-        }
-        .frame(minWidth: 760, minHeight: 600)
-        .task { await control.activate() }
-        .onDisappear { Task { await control.deactivate() } }
-    }
-}
-
-private struct StreamingHeader: View {
+private struct ManualControlPanel: View {
     let control: LightControl
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text(control.area.name).font(.title2.bold())
+                SyncStatusLabel(control: control)
                 Spacer()
-                Circle()
-                    .fill(control.state == .streaming ? .green : .secondary.opacity(0.4))
-                    .frame(width: 10, height: 10)
-                Text(statusText).foregroundStyle(.secondary)
-                switch control.state {
-                case .stopped:
-                    Button("Start Streaming") { Task { await control.start() } }
-                        .buttonStyle(.borderedProminent)
-                case .streaming:
-                    Button("Stop") { Task { await control.stop() } }
-                case .starting, .stopping:
-                    ProgressView().controlSize(.small)
+                if control.state == .stopped {
+                    Button("Resume") { Task { await control.start() } }
                 }
             }
+            .padding([.horizontal, .top])
             if let error = control.errorMessage {
-                Text(error).foregroundStyle(.red)
+                Text(error)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal)
             }
+            ManualColorsForm(control: control)
+        }
+        .frame(minWidth: 560, minHeight: 520)
+        // Opening the window takes over the lights; closing hands them back.
+        .task { await control.beginManual() }
+        .onDisappear { Task { await control.endManual() } }
+    }
+}
+
+// MARK: Shared sync controls
+
+/// A colored dot plus what the lights are doing right now.
+struct SyncStatusLabel: View {
+    let control: LightControl
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+            Text(text)
+                .foregroundStyle(.secondary)
         }
     }
 
-    private var statusText: String {
+    private var color: Color {
         switch control.state {
-        case .stopped: "Not streaming"
+        case .streaming: control.mode == .screen ? .green : .orange
+        case .starting, .stopping: .yellow
+        case .stopped: .secondary.opacity(0.5)
+        }
+    }
+
+    private var text: String {
+        switch control.state {
+        case .streaming: control.mode == .screen ? "Syncing with screen" : "Manual control"
         case .starting: "Connecting…"
-        case .streaming: "Streaming"
         case .stopping: "Stopping…"
+        case .stopped: "Off"
         }
     }
 }
 
-// MARK: Colors tab
+/// Starts or stops screen sync.
+struct SyncButton: View {
+    let control: LightControl
+    var large = false
 
-private struct ColorsTab: View {
+    var body: some View {
+        switch control.state {
+        case .stopped:
+            Button { Task { await control.startScreenSync() } } label: {
+                Label("Start Sync", systemImage: "play.fill")
+                    .frame(maxWidth: large ? .infinity : nil)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(large ? .large : .regular)
+        case .streaming:
+            Button { Task { await control.stop() } } label: {
+                Label("Stop Sync", systemImage: "stop.fill")
+                    .frame(maxWidth: large ? .infinity : nil)
+            }
+            .controlSize(large ? .large : .regular)
+        case .starting, .stopping:
+            ProgressView()
+                .controlSize(.small)
+                .frame(maxWidth: large ? .infinity : nil)
+        }
+    }
+}
+
+// MARK: Colors
+
+private struct ManualColorsForm: View {
     @Bindable var control: LightControl
 
     private static let presets: [(name: String, color: LightColor)] = [
@@ -126,7 +149,7 @@ private struct ColorsTab: View {
             } header: {
                 Text("All Lights")
             } footer: {
-                Text("While streaming, the bridge locks these lights to Blask Sync. They return to their previous state when you stop.")
+                Text("Closing this window hands the lights back to screen sync if it was running, or releases them.")
             }
 
             ForEach(control.strips, id: \.light) { strip in
