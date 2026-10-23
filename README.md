@@ -77,3 +77,8 @@ With ad-hoc signing, the permission has to be granted again after every rebuild.
 
 The bridge's certificate is issued by Signify's private CA. The app accepts it only when its
 common name equals the bridge ID.
+
+## App icon
+
+`scripts/make-icon.swift` draws the icon with CoreGraphics. `scripts/make-icns.sh` renders it at every
+macOS size into `Resources/AppIcon.icns`, which `scripts/bundle.sh` copies into the app.
