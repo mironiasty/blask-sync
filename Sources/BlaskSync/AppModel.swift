@@ -159,9 +159,8 @@ final class AppModel {
         }
     }
 
-    /// Releases the streaming session before quitting; otherwise the bridge holds the lights for ~10 s.
-    func quit() async {
-        await lightControl?.shutdown()
+    /// The app delegate releases the lights before the app actually exits.
+    func quit() {
         NSApplication.shared.terminate(nil)
     }
 

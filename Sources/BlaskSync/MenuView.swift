@@ -43,7 +43,7 @@ struct MenuView: View {
                 Button("Settings…", action: showSettings)
                     .keyboardShortcut(",")
                 Spacer()
-                Button("Quit") { Task { await model.quit() } }
+                Button("Quit", action: model.quit)
                     .keyboardShortcut("q")
             }
             .buttonStyle(.borderless)

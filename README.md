@@ -56,7 +56,7 @@ The sync session belongs to the app, not to a window, so sync keeps running with
    then opens a DTLS 1.2 PSK session (`TLS_PSK_WITH_AES_128_GCM_SHA256`) to UDP port 2100. The PSK identity
    is the application key and the key is the hex-decoded client key.
 2. Each channel's RGB color goes out as a HueStream v2 message at 50 Hz (`HueKit/EntertainmentStream.swift`).
-3. Stopping or quitting sends `{"action": "stop"}`. The lights then return to their previous state.
+3. Stopping, or any graceful quit (menu, logout, shutdown, relaunch), sends `{"action": "stop"}` first, with a 2 s cap. The lights then return to their previous state.
 4. While streaming or capturing, the app holds a latency-critical activity so App Nap doesn't throttle its timers.
 
 ## Screen sync
