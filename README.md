@@ -74,9 +74,11 @@ the app, not to a window, so sync keeps running with all windows closed.
   capture stops while the TV app is in front and the lights ease to a soft warm glow; it resumes when you
   switch away. The TV app is also left out of the capture filter. Lights can't follow protected movies.
   DRM video in a browser (e.g. Netflix in Safari) has the same limitation.
-- **Mapping.** The canvas shows the screen inside the wall around it. Each channel has a region:
-  - **Strip segments** stay on the screen, drawn solid and joined in physical order.
-  - **Lamps** (dashed, with their icon) can sit on the screen or on the wall beside it. A lamp beside the
+- **Mapping.** The canvas shows the monitor (with the live preview) on the wall, lit by your lights: each one
+  is a glowing marker that casts its color onto the wall. Drag a light to move it; hover to see the screen
+  area it follows, select it to resize that area.
+  - **Strip segments** are numbered dots joined by a glowing LED line, and stay on the screen.
+  - **Lamps** are bulbs with their icon and can sit on the screen or on the wall beside it. A lamp beside the
     screen samples the nearest same-size screen area, and blends toward the whole screen's average the
     further its center lies outside (1.2 × the distance in screen widths, capped at 80%).
 

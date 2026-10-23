@@ -15,12 +15,12 @@ struct ScreenMappingView: View {
                 CaptureStatusBanner(control: control)
                 MappingCanvas(control: control, selection: $selection)
                 HStack(spacing: 16) {
-                    LegendItem(color: .accentColor, dashed: false, text: "Strip segment")
-                    LegendItem(color: .orange, dashed: true, text: "Lamp: on the screen or beside it")
+                    LegendItem(symbol: nil, text: "Strip segment")
+                    LegendItem(symbol: "lamp.table", text: "Lamp: on the screen or beside it")
                     Spacer()
                     Button("Reset Layout", action: control.resetMapping)
                 }
-                Text("Drag a region to move it, drag its corner to resize. Lamps beside the screen follow the nearest edge, softened toward the overall screen color the further away they are.")
+                Text("Drag a light to move it; hover to see the screen area it follows, select it to resize that area. Lamps beside the screen follow the nearest edge, softened toward the overall screen color the further away they are.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -44,16 +44,22 @@ struct ScreenMappingView: View {
 }
 
 private struct LegendItem: View {
-    let color: Color
-    let dashed: Bool
+    let symbol: String?
     let text: String
 
     var body: some View {
         HStack(spacing: 6) {
-            RoundedRectangle(cornerRadius: 3)
-                .strokeBorder(color, style: StrokeStyle(lineWidth: 1.5, dash: dashed ? [3, 2] : []))
-                .background(color.opacity(0.2), in: RoundedRectangle(cornerRadius: 3))
-                .frame(width: 16, height: 12)
+            ZStack {
+                Circle()
+                    .fill(Color.orange.gradient)
+                    .shadow(color: .orange, radius: 4)
+                if let symbol {
+                    Image(systemName: symbol)
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+            }
+            .frame(width: symbol == nil ? 10 : 16, height: symbol == nil ? 10 : 16)
             Text(text)
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -92,121 +98,193 @@ private struct CanvasGeometry {
 private struct MappingCanvas: View {
     let control: LightControl
     @Binding var selection: UInt8?
+    @State private var hovered: UInt8?
 
     var body: some View {
         GeometryReader { proxy in
             let geometry = CanvasGeometry(size: proxy.size)
             ZStack(alignment: .topLeading) {
                 wall(geometry)
-                screen(geometry)
-                stripPaths(geometry)
-                lampConnectors(geometry)
-                selectedSampleArea(geometry)
-
+                blooms(geometry)
+                monitor(geometry)
+                sampleAreas(geometry)
+                lampBeams(geometry)
+                stripLine(geometry)
                 ForEach(control.area.channels) { channel in
                     if let region = control.mapping.regions[channel.id] {
-                        RegionView(
+                        LightMarker(
+                            color: color(for: channel.id),
                             label: label(for: channel.id),
                             symbol: control.isLamp(channel.id) ? symbol(for: channel.id) : nil,
-                            isStrip: !control.isLamp(channel.id),
-                            liveColor: control.liveColors[channel.id]?.color,
                             isSelected: selection == channel.id,
                             region: regionBinding(channel.id, fallback: region),
                             bounds: control.placementBounds(for: channel.id),
                             geometry: geometry,
-                            onSelect: { selection = channel.id }
+                            onSelect: { selection = channel.id },
+                            onHover: { hovered = $0 ? channel.id : (hovered == channel.id ? nil : hovered) }
                         )
-                        .zIndex(selection == channel.id ? 1 : 0)
+                        .zIndex(selection == channel.id ? 2 : 1)
                     }
                 }
             }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .aspectRatio(control.selectedDisplay?.aspectRatio ?? 16 / 9, contentMode: .fit)
         .frame(minHeight: 300)
     }
 
+    // MARK: Scene
+
     private func wall(_ geometry: CanvasGeometry) -> some View {
-        ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(LinearGradient(colors: [Color(white: 0.2), Color(white: 0.12)], startPoint: .top, endPoint: .bottom))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(Color(white: 0.35), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                )
-            Text("Wall")
-                .font(.caption)
-                .foregroundStyle(Color(white: 0.5))
-                .padding(8)
-        }
-        .frame(width: geometry.size.width, height: geometry.size.height)
+        RoundedRectangle(cornerRadius: 12)
+            .fill(RadialGradient(
+                colors: [Color(white: 0.16), Color(white: 0.07)],
+                center: .center, startRadius: 0, endRadius: max(geometry.size.width, geometry.size.height) * 0.7
+            ))
+            .frame(width: geometry.size.width, height: geometry.size.height)
     }
 
-    private func screen(_ geometry: CanvasGeometry) -> some View {
-        let rect = geometry.screen
-        return ZStack(alignment: .topLeading) {
-            // Monitor stand, for orientation.
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color(white: 0.28))
-                .frame(width: rect.width * 0.08, height: geometry.unit.height * 0.12)
-                .offset(x: rect.midX - rect.width * 0.04, y: rect.maxY)
-            Group {
-                if let preview = control.preview {
-                    Image(decorative: preview, scale: 1)
-                        .resizable()
-                } else {
-                    LinearGradient(colors: [Color(white: 0.1), Color(white: 0.04)], startPoint: .top, endPoint: .bottom)
-                        .overlay(Text("Screen").font(.caption).foregroundStyle(Color(white: 0.45)))
+    /// Each light's color spilling onto the wall, so the canvas reads as a lit room.
+    private func blooms(_ geometry: CanvasGeometry) -> some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(control.area.channels) { channel in
+                if let region = control.mapping.regions[channel.id] {
+                    let diameter = geometry.size.width * (control.isLamp(channel.id) ? 0.42 : 0.2)
+                    let center = geometry.point(x: region.centerX, y: region.centerY)
+                    Circle()
+                        .fill(RadialGradient(colors: [color(for: channel.id).opacity(0.55), .clear], center: .center, startRadius: 0, endRadius: diameter / 2))
+                        .frame(width: diameter, height: diameter)
+                        .offset(x: center.x - diameter / 2, y: center.y - diameter / 2)
                 }
             }
-            .frame(width: rect.width, height: rect.height)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color(white: 0.45), lineWidth: 2))
-            .offset(x: rect.minX, y: rect.minY)
         }
+        .blendMode(.screen)
+        .allowsHitTesting(false)
     }
 
-    /// Strip segments joined in physical order, so the strip's run around the screen is visible.
-    private func stripPaths(_ geometry: CanvasGeometry) -> some View {
-        ForEach(control.strips, id: \.light) { strip in
-            Path { path in
-                let points = strip.channels.compactMap { control.mapping.regions[$0] }
-                    .map { geometry.point(x: $0.centerX, y: $0.centerY) }
-                guard let first = points.first else { return }
-                path.move(to: first)
-                points.dropFirst().forEach { path.addLine(to: $0) }
+    private func monitor(_ geometry: CanvasGeometry) -> some View {
+        let screen = geometry.screen
+        let bezel = screen.insetBy(dx: -screen.width * 0.015, dy: -screen.width * 0.015)
+        let neck = CGRect(x: screen.midX - screen.width * 0.035, y: bezel.maxY, width: screen.width * 0.07, height: geometry.unit.height * 0.13)
+        let foot = CGRect(x: screen.midX - screen.width * 0.13, y: neck.maxY - 2, width: screen.width * 0.26, height: geometry.unit.height * 0.035)
+        return ZStack(alignment: .topLeading) {
+            ForEach([neck, foot], id: \.minY) { part in
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(LinearGradient(colors: [Color(white: 0.32), Color(white: 0.16)], startPoint: .top, endPoint: .bottom))
+                    .frame(width: part.width, height: part.height)
+                    .offset(x: part.minX, y: part.minY)
             }
-            .stroke(Color.accentColor.opacity(0.7), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [5, 4]))
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(white: 0.09))
+                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(white: 0.28), lineWidth: 1))
+                .shadow(color: .black.opacity(0.6), radius: 12, y: 6)
+                .frame(width: bezel.width, height: bezel.height)
+                .offset(x: bezel.minX, y: bezel.minY)
+            Group {
+                if let preview = control.preview {
+                    Image(decorative: preview, scale: 1).resizable()
+                } else {
+                    LinearGradient(colors: [Color(white: 0.13), Color(white: 0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        .overlay(
+                            Label(control.pausedForApp == nil ? "Screen preview" : "Paused while \(control.pausedForApp!) is in front", systemImage: "display")
+                                .font(.caption)
+                                .foregroundStyle(Color(white: 0.45))
+                        )
+                }
+            }
+            .frame(width: screen.width, height: screen.height)
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+            .overlay(
+                // Glass sheen.
+                LinearGradient(colors: [.white.opacity(0.08), .clear], startPoint: .topLeading, endPoint: .center)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            )
+            .offset(x: screen.minX, y: screen.minY)
         }
+        .allowsHitTesting(false)
     }
 
-    /// A line from each lamp beside the screen to the screen area it samples.
-    private func lampConnectors(_ geometry: CanvasGeometry) -> some View {
-        Path { path in
-            for (_, region) in control.mapping.regions where region.distanceFromScreen > 0 {
-                let sampled = region.sampledRegion
-                path.move(to: geometry.point(x: region.centerX, y: region.centerY))
-                path.addLine(to: geometry.point(x: sampled.centerX, y: sampled.centerY))
+    /// The screen area of the hovered and selected lights; the selected one can be resized.
+    private func sampleAreas(_ geometry: CanvasGeometry) -> some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(Array(Set([hovered, selection].compactMap { $0 })), id: \.self) { channel in
+                if let region = control.mapping.regions[channel] {
+                    SampleArea(
+                        color: color(for: channel),
+                        isSelected: selection == channel,
+                        region: regionBinding(channel, fallback: region),
+                        bounds: control.placementBounds(for: channel),
+                        geometry: geometry
+                    )
+                }
             }
         }
-        .stroke(Color.orange.opacity(0.6), style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
     }
 
-    @ViewBuilder
-    private func selectedSampleArea(_ geometry: CanvasGeometry) -> some View {
-        if let selection, let region = control.mapping.regions[selection], region.distanceFromScreen > 0 {
-            let rect = geometry.rect(region.sampledRegion)
-            RoundedRectangle(cornerRadius: 4)
-                .strokeBorder(Color.orange, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
-                .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                .frame(width: rect.width, height: rect.height)
-                .offset(x: rect.minX, y: rect.minY)
-                .allowsHitTesting(false)
+    /// Lamps beside the screen: a faint dotted link to their area, a soft beam when hovered or selected.
+    private func lampBeams(_ geometry: CanvasGeometry) -> some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(control.area.channels) { channel in
+                if let region = control.mapping.regions[channel.id], region.distanceFromScreen > 0 {
+                    let sampled = region.sampledRegion
+                    let from = geometry.point(x: region.centerX, y: region.centerY)
+                    let to = geometry.point(x: sampled.centerX, y: sampled.centerY)
+                    let active = selection == channel.id || hovered == channel.id
+                    Path { path in
+                        path.move(to: from)
+                        path.addLine(to: to)
+                    }
+                    .stroke(
+                        LinearGradient(colors: [color(for: channel.id).opacity(active ? 0.9 : 0.35), color(for: channel.id).opacity(0.1)], startPoint: UnitPoint(x: from.x / geometry.size.width, y: from.y / geometry.size.height), endPoint: UnitPoint(x: to.x / geometry.size.width, y: to.y / geometry.size.height)),
+                        style: StrokeStyle(lineWidth: active ? 6 : 1.5, lineCap: .round, dash: active ? [] : [2, 4])
+                    )
+                    .blur(radius: active ? 2 : 0)
+                }
+            }
         }
+        .allowsHitTesting(false)
+    }
+
+    /// The LED strip: a glowing line through its segments, colored segment by segment.
+    private func stripLine(_ geometry: CanvasGeometry) -> some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(control.strips, id: \.light) { strip in
+                let points = strip.channels.compactMap { channel in
+                    control.mapping.regions[channel].map { (channel, geometry.point(x: $0.centerX, y: $0.centerY)) }
+                }
+                ForEach(Array(zip(points, points.dropFirst()).enumerated()), id: \.offset) { _, pair in
+                    let (a, b) = pair
+                    let gradient = LinearGradient(
+                        colors: [color(for: a.0), color(for: b.0)],
+                        startPoint: UnitPoint(x: a.1.x / geometry.size.width, y: a.1.y / geometry.size.height),
+                        endPoint: UnitPoint(x: b.1.x / geometry.size.width, y: b.1.y / geometry.size.height)
+                    )
+                    let segment = Path { path in
+                        path.move(to: a.1)
+                        path.addLine(to: b.1)
+                    }
+                    segment.stroke(gradient, style: StrokeStyle(lineWidth: 9, lineCap: .round)).blur(radius: 5).opacity(0.8)
+                    segment.stroke(gradient, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    // MARK: Helpers
+
+    /// The color the light sends now; a palette placeholder when nothing is live, so it never looks dead.
+    private func color(for channel: UInt8) -> Color {
+        if let live = control.liveColors[channel] {
+            return live.fullBrightness.color
+        }
+        let index = control.area.channels.firstIndex { $0.id == channel } ?? 0
+        return MusicPalette.vivid.color(at: Double(index) * 0.7).color
     }
 
     private func label(for channelId: UInt8) -> String {
         guard let description = control.channelDescriptions[channelId] else { return "\(channelId)" }
-        if case .stripSegment(let index, _) = description.kind { return "S\(index + 1)" }
+        if case .stripSegment(let index, _) = description.kind { return "\(index + 1)" }
         return "\(channelId)"
     }
 
@@ -222,98 +300,114 @@ private struct MappingCanvas: View {
     }
 }
 
-private struct RegionView: View {
+/// A light on the canvas: a glowing dot (strip segment) or bulb (lamp) at its region's center.
+/// Dragging it moves the region.
+private struct LightMarker: View {
+    let color: Color
     let label: String
-    /// Light icon, shown for lamps.
     let symbol: String?
-    let isStrip: Bool
-    /// The color this channel currently sends, shown as a swatch while screen sync runs.
-    let liveColor: Color?
     let isSelected: Bool
     @Binding var region: ScreenRegion
     let bounds: ScreenRegion.Bounds
     let geometry: CanvasGeometry
     let onSelect: () -> Void
+    let onHover: (Bool) -> Void
 
-    @State private var moveStart: ScreenRegion?
-    @State private var resizeStart: ScreenRegion?
-
-    private var tint: Color { isStrip ? .accentColor : .orange }
+    @State private var dragStart: ScreenRegion?
 
     var body: some View {
-        let frame = geometry.rect(region)
-        RoundedRectangle(cornerRadius: 4)
-            .fill(tint.opacity(isSelected ? 0.45 : 0.22))
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(tint, style: StrokeStyle(lineWidth: isSelected ? 2.5 : 1.5, dash: isStrip ? [] : [4, 3]))
-            )
-            .overlay { content }
-            .overlay(alignment: .bottomTrailing) {
-                if isSelected { resizeHandle }
-            }
-            .frame(width: frame.width, height: frame.height)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onSelect)
-            .gesture(
-                DragGesture(minimumDistance: 1)
-                    .onChanged { value in
-                        if moveStart == nil {
-                            moveStart = region
-                            onSelect()
-                        }
-                        guard let moveStart else { return }
-                        region = moveStart.moved(
-                            dx: value.translation.width / geometry.unit.width,
-                            dy: value.translation.height / geometry.unit.height,
-                            within: bounds
-                        )
-                    }
-                    .onEnded { _ in moveStart = nil }
-            )
-            .offset(x: frame.minX, y: frame.minY)
-    }
-
-    private var content: some View {
-        VStack(spacing: 2) {
+        let size: CGFloat = symbol == nil ? 22 : 36
+        let center = geometry.point(x: region.centerX, y: region.centerY)
+        ZStack {
+            Circle()
+                .fill(color.gradient)
+                .shadow(color: color, radius: isSelected ? 12 : 7)
             if let symbol {
                 Image(systemName: symbol)
-                    .font(.system(size: 13, weight: .semibold))
-            }
-            HStack(spacing: 4) {
-                if let liveColor {
-                    Circle()
-                        .fill(liveColor)
-                        .overlay(Circle().strokeBorder(.white.opacity(0.8)))
-                        .frame(width: 10, height: 10)
-                }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .shadow(radius: 1)
+            } else {
                 Text(label)
-                    .font(.caption.bold())
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white)
+                    .shadow(radius: 1)
             }
         }
-        .foregroundStyle(.white)
-        .shadow(radius: 2)
-    }
-
-    private var resizeHandle: some View {
-        Circle()
-            .fill(.white)
-            .overlay(Circle().strokeBorder(tint, lineWidth: 2))
-            .frame(width: 12, height: 12)
-            .offset(x: 4, y: 4)
-            .gesture(
-                DragGesture(minimumDistance: 1)
-                    .onChanged { value in
-                        if resizeStart == nil { resizeStart = region }
-                        guard let resizeStart else { return }
-                        region = resizeStart.resized(
-                            dWidth: value.translation.width / geometry.unit.width,
-                            dHeight: value.translation.height / geometry.unit.height,
-                            within: bounds
-                        )
+        .frame(width: size, height: size)
+        .overlay(Circle().strokeBorder(.white.opacity(isSelected ? 1 : 0.7), lineWidth: isSelected ? 3 : 1.5))
+        .overlay {
+            if isSelected {
+                Circle().strokeBorder(Color.accentColor, lineWidth: 2).padding(-5)
+            }
+        }
+        .contentShape(Circle().inset(by: -6))
+        .onHover(perform: onHover)
+        .onTapGesture(perform: onSelect)
+        .gesture(
+            DragGesture(minimumDistance: 1)
+                .onChanged { value in
+                    if dragStart == nil {
+                        dragStart = region
+                        onSelect()
                     }
-                    .onEnded { _ in resizeStart = nil }
-            )
+                    guard let dragStart else { return }
+                    region = dragStart.moved(
+                        dx: value.translation.width / geometry.unit.width,
+                        dy: value.translation.height / geometry.unit.height,
+                        within: bounds
+                    )
+                }
+                .onEnded { _ in dragStart = nil }
+        )
+        .position(center)
+    }
+}
+
+/// The screen area a light follows, shown on hover and selection; the selected one gets a resize handle.
+private struct SampleArea: View {
+    let color: Color
+    let isSelected: Bool
+    @Binding var region: ScreenRegion
+    let bounds: ScreenRegion.Bounds
+    let geometry: CanvasGeometry
+
+    @State private var resizeStart: ScreenRegion?
+
+    var body: some View {
+        let rect = geometry.rect(region.sampledRegion)
+        RoundedRectangle(cornerRadius: 6)
+            .fill(color.opacity(0.18))
+            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(color, style: StrokeStyle(lineWidth: 2, dash: [6, 4])))
+            .shadow(color: color.opacity(0.6), radius: 8)
+            .overlay(alignment: .bottomTrailing) {
+                if isSelected {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(width: 18, height: 18)
+                        .background(Circle().fill(.white))
+                        .shadow(radius: 2)
+                        .offset(x: 7, y: 7)
+                        .gesture(
+                            DragGesture(minimumDistance: 1)
+                                .onChanged { value in
+                                    if resizeStart == nil { resizeStart = region }
+                                    guard let resizeStart else { return }
+                                    region = resizeStart.resized(
+                                        dWidth: value.translation.width / geometry.unit.width,
+                                        dHeight: value.translation.height / geometry.unit.height,
+                                        within: bounds
+                                    )
+                                }
+                                .onEnded { _ in resizeStart = nil }
+                        )
+                        .help("Drag to resize the area this light follows")
+                }
+            }
+            .frame(width: rect.width, height: rect.height)
+            .offset(x: rect.minX, y: rect.minY)
+            .allowsHitTesting(isSelected)
     }
 }
 
