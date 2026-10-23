@@ -217,10 +217,14 @@ final class LightControl {
         guard state == .stopped else { return }
         state = .starting
         errorMessage = nil
+        // Start capturing while the stream connects, so screen colors are ready when it's up.
+        updateCapture()
         let stream = EntertainmentStream(
             credentials: credentials,
             areaId: area.id,
-            initialColors: followsScreen && !liveColors.isEmpty ? liveColors : outputColors,
+            // Screen mode never falls back to the manual colors (white by default): with no screen
+            // colors yet, the stream waits and the lights keep their current state.
+            initialColors: followsScreen ? liveColors : outputColors,
             onFailure: { [weak self] error in
                 Task { @MainActor in self?.streamDropped(error) }
             }

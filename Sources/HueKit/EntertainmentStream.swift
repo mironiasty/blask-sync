@@ -51,7 +51,8 @@ public final class EntertainmentStream: @unchecked Sendable {
     private static let logger = Logger(subsystem: "local.blasksync", category: "stream")
 
     /// - Parameters:
-    ///   - initialColors: Colors sent from the first frame on, keyed by channel ID.
+    ///   - initialColors: Colors sent from the first frame on, keyed by channel ID. May be empty: nothing
+    ///     is sent until colors arrive, so the lights keep their current state instead of jumping to a placeholder.
     ///   - onFailure: Called on the stream's queue if the connection drops after starting.
     public init(
         credentials: BridgeCredentials,
@@ -140,7 +141,9 @@ public final class EntertainmentStream: @unchecked Sendable {
 
     /// Must be called on `queue`.
     private func sendFrame() {
-        let message = HueStreamMessage.encode(areaId: areaId, colors: colors.withLock { $0 })
+        let colors = colors.withLock { $0 }
+        guard !colors.isEmpty else { return }
+        let message = HueStreamMessage.encode(areaId: areaId, colors: colors)
         connection?.send(content: message, completion: .idempotent)
         if let summary = sendStats.record() {
             Self.logger.notice("sent \(summary.description, privacy: .public)")
