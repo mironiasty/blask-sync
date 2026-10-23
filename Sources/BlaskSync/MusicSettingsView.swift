@@ -26,6 +26,8 @@ struct MusicSettings: View {
 
 private struct MusicSettingsPane: View {
     @Bindable var control: LightControl
+    @State private var paneVisible = false
+    @State private var windowVisible = false
 
     private var styleDescription: String {
         switch control.musicStyle {
@@ -102,9 +104,15 @@ private struct MusicSettingsPane: View {
             Spacer(minLength: 0)
         }
         .padding()
-        // Meters run only while this pane is visible (or while music sync streams).
-        .onAppear { control.musicPreviewing = true }
-        .onDisappear { control.musicPreviewing = false }
+        // Meters (audio capture) run only while this tab is shown in an open, visible window,
+        // or while music sync streams.
+        .onAppear { paneVisible = true; updateMeters() }
+        .onDisappear { paneVisible = false; updateMeters() }
+        .background(WindowVisibilityReader { windowVisible = $0; updateMeters() })
+    }
+
+    private func updateMeters() {
+        control.musicPreviewing = paneVisible && windowVisible
     }
 }
 
