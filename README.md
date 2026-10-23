@@ -55,8 +55,10 @@ certificate, install Apple's [WWDR G3 intermediate](https://www.apple.com/certif
     preview runs while this tab is visible.
   - **Music:** palette, intensity and brightness, with live level/bass/mid/high meters, a beat indicator and
     the colors being sent.
-- **Manual Control window.** Opening it switches the lights to the colors picked there and starts streaming
-  if needed. Closing it returns to screen sync if that was running, otherwise it releases the lights.
+- **Manual Control window.** A color wheel with a pin per light (drag a pin to recolor it; selected lights turn
+  together), a lights panel (the strip as a segmented LED bar plus lamp bulbs) to choose what to edit, a
+  brightness bar, and scenes (warm/neutral/cool whites, off, or a palette spread across the strip). Opening it
+  switches the lights to these colors and starts streaming if needed. Closing it returns to screen sync if that was running, otherwise it releases the lights.
 
 While Settings or Manual Control is open, Blask Sync shows in the Dock and ⌘-Tab (so a window that went
 behind others can be brought back); with them closed it's menu-bar-only again. The sync session belongs to

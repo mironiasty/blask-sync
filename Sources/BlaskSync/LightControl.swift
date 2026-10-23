@@ -342,6 +342,12 @@ final class LightControl {
         pushColors()
     }
 
+    /// Sets several channels at once (one update to the lights).
+    func setColors(_ updates: [UInt8: LightColor]) {
+        colors.merge(updates) { _, new in new }
+        pushColors()
+    }
+
     func start() async {
         guard state == .stopped else { return }
         state = .starting
@@ -408,7 +414,8 @@ final class LightControl {
         if let identifiedChannel {
             return Dictionary(uniqueKeysWithValues: colors.keys.map { ($0, $0 == identifiedChannel ? LightColor.white : .black) })
         }
-        return colors.mapValues { $0.scaled(by: brightness) }
+        // Manual colors carry their own brightness; the master brightness is for screen and music sync.
+        return colors
     }
 
     /// Whether the lights currently follow the screen or music (as opposed to manual colors or identify).
