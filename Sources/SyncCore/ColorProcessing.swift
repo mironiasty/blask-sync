@@ -49,20 +49,27 @@ public enum ColorExtractor {
 public enum SyncIntensity: String, CaseIterable, Codable, Sendable {
     case subtle, moderate, high, extreme
 
-    /// Time for a color change to get ~63% of the way to its target.
+    /// Average delay of the smoothed color behind the screen. Even Extreme stays above the typical gap
+    /// between captured frames (often 50-150 ms), so new frames blend in instead of showing as steps.
     public var timeConstant: TimeInterval {
         switch self {
         case .subtle: 0.6
         case .moderate: 0.3
-        case .high: 0.12
-        case .extreme: 0.04
+        case .high: 0.18
+        case .extreme: 0.1
         }
     }
 }
 
-/// Exponential smoothing per channel that behaves the same whatever the update rate.
+/// Per-channel smoothing in two exponential stages, each with half the time constant.
+///
+/// A single exponential stage moves fastest the instant the target changes, which reads as a jolt.
+/// Feeding it through a second stage gives an ease-in/ease-out curve with the same average delay.
 public struct ColorSmoother: Sendable {
+    /// The smoothed output.
     public private(set) var current: [UInt8: LightColor] = [:]
+    /// The first stage, which `current` follows.
+    private var intermediate: [UInt8: LightColor] = [:]
     private var lastUpdate: TimeInterval?
 
     public init() {}
@@ -70,22 +77,27 @@ public struct ColorSmoother: Sendable {
     public mutating func update(toward target: [UInt8: LightColor], timeConstant: TimeInterval, now: TimeInterval) -> [UInt8: LightColor] {
         let elapsed = lastUpdate.map { max(0, now - $0) } ?? .infinity
         lastUpdate = now
-        let alpha = timeConstant > 0 ? 1 - exp(-elapsed / timeConstant) : 1
+        let alpha = timeConstant > 0 ? 1 - exp(-elapsed / (timeConstant / 2)) : 1
 
+        var nextIntermediate: [UInt8: LightColor] = [:]
         var next: [UInt8: LightColor] = [:]
         for (channel, goal) in target {
-            guard let from = current[channel] else {
-                next[channel] = goal
-                continue
-            }
-            next[channel] = LightColor(
-                red: from.red + (goal.red - from.red) * alpha,
-                green: from.green + (goal.green - from.green) * alpha,
-                blue: from.blue + (goal.blue - from.blue) * alpha
-            )
+            // New channels start at their target rather than fading in from black.
+            let stage1 = Self.step(from: intermediate[channel] ?? goal, toward: goal, alpha: alpha)
+            nextIntermediate[channel] = stage1
+            next[channel] = Self.step(from: current[channel] ?? goal, toward: stage1, alpha: alpha)
         }
+        intermediate = nextIntermediate
         current = next
         return next
+    }
+
+    private static func step(from: LightColor, toward goal: LightColor, alpha: Double) -> LightColor {
+        LightColor(
+            red: from.red + (goal.red - from.red) * alpha,
+            green: from.green + (goal.green - from.green) * alpha,
+            blue: from.blue + (goal.blue - from.blue) * alpha
+        )
     }
 }
 

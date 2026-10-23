@@ -68,7 +68,8 @@ Configured in **Settings → Screen**, started from the menu bar:
 - **Mapping.** Each channel samples a screen region. Strip segments (solid, joined in physical order) and
   lamps (dashed) can be dragged and resized over a live preview. Mappings are saved per area.
 - **Colors.** `ColorExtractor` averages each region. `ScreenSyncEngine` eases toward those colors at 50 Hz
-  with exponential smoothing; the time constant is set by **Intensity** (subtle 0.6 s … extreme 0.04 s).
+  through two exponential stages, which gives an ease-in/ease-out curve instead of a jolt. **Intensity** sets the
+  average delay (subtle 0.6 s … extreme 0.1 s); even Extreme covers the usual gap between captured frames.
   The easing continues while the screen is static and no new frames arrive.
 - **Adjustments.** **Saturation** pushes the averaged colors (which drift toward gray) toward vivid ones,
   keeping hue and brightness. **Minimum brightness** keeps the lights glowing faintly in dark scenes.

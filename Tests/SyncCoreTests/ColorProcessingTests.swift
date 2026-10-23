@@ -38,27 +38,42 @@ struct ColorProcessingTests {
         #expect(colors[0] == LightColor(red: 0, green: 0, blue: 1))
     }
 
-    @Test func smootherJumpsFirstThenEases() {
+    /// Runs the smoother at 50 Hz from white toward black and returns the red channel at each tick.
+    private func fade(timeConstant: TimeInterval, seconds: Double, rate: Double = 50) -> [Double] {
         var smoother = ColorSmoother()
-        let white = [UInt8(0): LightColor.white]
-        let black = [UInt8(0): LightColor.black]
-        #expect(smoother.update(toward: white, timeConstant: 1, now: 0) == white)
-
-        // One time constant later: ~63% of the way from white to black.
-        let next = smoother.update(toward: black, timeConstant: 1, now: 1)[0]!
-        #expect(abs(next.red - exp(-1)) < 1e-9)
+        _ = smoother.update(toward: [0: .white], timeConstant: timeConstant, now: 0)
+        return (1...Int(seconds * rate)).map { tick in
+            smoother.update(toward: [0: .black], timeConstant: timeConstant, now: Double(tick) / rate)[0]!.red
+        }
     }
 
-    @Test func smootherIsRateIndependent() {
-        var coarse = ColorSmoother()
-        var fine = ColorSmoother()
-        let start = [UInt8(0): LightColor.white]
-        let goal = [UInt8(0): LightColor.black]
-        _ = coarse.update(toward: start, timeConstant: 0.3, now: 0)
-        _ = fine.update(toward: start, timeConstant: 0.3, now: 0)
+    @Test func smootherStartsAtTarget() {
+        var smoother = ColorSmoother()
+        #expect(smoother.update(toward: [0: .white], timeConstant: 1, now: 0) == [0: .white])
+    }
 
-        _ = coarse.update(toward: goal, timeConstant: 0.3, now: 0.2)
-        for step in 1...10 { _ = fine.update(toward: goal, timeConstant: 0.3, now: Double(step) * 0.02) }
-        #expect(abs(coarse.current[0]!.red - fine.current[0]!.red) < 1e-9)
+    @Test func smootherEasesInInsteadOfJolting() {
+        let values = fade(timeConstant: 0.3, seconds: 1)
+        let firstStep = 1 - values[0]
+        let secondStep = values[0] - values[1]
+        // A single exponential stage would take its biggest step first (~6% of the way).
+        #expect(firstStep < 0.02)
+        #expect(secondStep > firstStep)
+    }
+
+    @Test func smootherSettlesWithinFiveTimeConstants() {
+        let values = fade(timeConstant: 0.3, seconds: 1.5)
+        #expect(values.last! < 0.01)
+        // Monotonic: no overshoot or wobble.
+        #expect(zip(values, values.dropFirst()).allSatisfy { $0 >= $1 })
+    }
+
+    @Test func smootherIsNearlyRateIndependent() {
+        // The 50 Hz and 100 Hz curves should agree at the same moments in time.
+        let at50 = fade(timeConstant: 0.3, seconds: 1, rate: 50)
+        let at100 = fade(timeConstant: 0.3, seconds: 1, rate: 100)
+        for (index, value) in at50.enumerated() {
+            #expect(abs(value - at100[index * 2 + 1]) < 0.02)
+        }
     }
 }
