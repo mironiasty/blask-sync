@@ -22,6 +22,12 @@ struct MenuView: View {
                 .controlSize(.large)
             } else if let control = model.lightControl {
                 syncControls(control)
+            } else if model.isLoadingAreas {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Connecting to your Hue Bridge…")
+                        .foregroundStyle(.secondary)
+                }
             } else if model.areas.isEmpty {
                 Text("No entertainment areas found. Create one in the Hue app under Settings → Entertainment areas.")
                     .foregroundStyle(.secondary)
@@ -50,6 +56,12 @@ struct MenuView: View {
         }
         .padding()
         .frame(width: 300)
+        .onAppear {
+            // Safety net: if loading failed earlier, opening the menu tries again.
+            if model.credentials != nil, model.areas.isEmpty {
+                Task { await model.refreshAreas() }
+            }
+        }
     }
 
     @ViewBuilder
