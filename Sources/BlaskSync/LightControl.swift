@@ -33,8 +33,10 @@ final class LightControl {
     private(set) var state: StreamState = .stopped
     /// What renders each channel (lamp or strip segment); empty until `loadLights()` finishes.
     private(set) var channelDescriptions: [UInt8: ChannelDescription] = [:]
-    /// Base color per channel; `brightness` is applied on top when sending.
-    private(set) var colors: [UInt8: LightColor]
+    /// Manual color per channel, remembered per area across launches.
+    private(set) var colors: [UInt8: LightColor] {
+        didSet { saveManualColors() }
+    }
     var brightness = 1.0 {
         didSet {
             pushColors()
@@ -200,7 +202,8 @@ final class LightControl {
     init(area: EntertainmentArea, credentials: BridgeCredentials) {
         self.area = area
         self.credentials = credentials
-        colors = Dictionary(uniqueKeysWithValues: area.channels.map { ($0.id, LightColor.white) })
+        let savedColors = Self.loadManualColors(areaId: area.id)
+        colors = Dictionary(uniqueKeysWithValues: area.channels.map { ($0.id, savedColors[$0.id] ?? LightColor.white) })
         mapping = (mappingStore.load(areaId: area.id) ?? .defaults(for: area.channels)).reconciled(with: area.channels)
 
         let defaults = UserDefaults.standard
@@ -340,6 +343,22 @@ final class LightControl {
     func setAllColors(_ color: LightColor) {
         for channel in colors.keys { colors[channel] = color }
         pushColors()
+    }
+
+    private var manualColorsKey: String { "manualColors.\(area.id)" }
+
+    /// Stored as channel → [red, green, blue], since LightColor isn't Codable.
+    private func saveManualColors() {
+        let plist = Dictionary(uniqueKeysWithValues: colors.map { (String($0.key), [$0.value.red, $0.value.green, $0.value.blue]) })
+        UserDefaults.standard.set(plist, forKey: manualColorsKey)
+    }
+
+    private static func loadManualColors(areaId: String) -> [UInt8: LightColor] {
+        guard let plist = UserDefaults.standard.dictionary(forKey: "manualColors.\(areaId)") as? [String: [Double]] else { return [:] }
+        return Dictionary(uniqueKeysWithValues: plist.compactMap { key, rgb in
+            guard let channel = UInt8(key), rgb.count == 3 else { return nil }
+            return (channel, LightColor(red: rgb[0], green: rgb[1], blue: rgb[2]))
+        })
     }
 
     /// Sets several channels at once (one update to the lights).
