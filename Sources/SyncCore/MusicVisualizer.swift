@@ -34,23 +34,29 @@ public enum MusicPalette: String, CaseIterable, Codable, Sendable {
     }
 }
 
-/// Turns audio features into channel colors.
-///
-/// Colors come from a palette that steps to the next color on every beat and drifts slowly in between.
-/// Strip segments spread across the palette as a moving gradient; lamps take a contrasting color and
-/// pulse with the bass. Brightness follows loudness, with a flash on each beat that decays.
+/// How music sync visualizes a song.
+public enum MusicStyle: String, CaseIterable, Codable, Sendable {
+    /// Colors flow along the strip at a speed set by the music; beats travel through it as soft waves.
+    case flow
+    /// Colors step to the next palette color on every beat, with a brightness flash.
+    case pulse
+}
+
+/// Turns audio features into channel colors, in one of two styles (see `MusicStyle`).
 public struct MusicVisualizer: Sendable {
     public struct Settings: Sendable, Equatable {
         public var palette: MusicPalette
         public var intensity: SyncIntensity
+        public var style: MusicStyle
 
-        public init(palette: MusicPalette, intensity: SyncIntensity) {
+        public init(palette: MusicPalette, intensity: SyncIntensity, style: MusicStyle = .flow) {
             self.palette = palette
             self.intensity = intensity
+            self.style = style
         }
     }
 
-    /// How hard and how long beats hit, per intensity.
+    /// Pulse style: how hard and how long beats hit, per intensity.
     struct Dynamics {
         /// Brightness added by a full-strength beat.
         let pulseGain: Double
@@ -71,23 +77,70 @@ public struct MusicVisualizer: Sendable {
         }
     }
 
+    /// Flow style: how lively the movement is, per intensity.
+    struct FlowDynamics {
+        /// Multiplies the flow speed.
+        let speed: Double
+        /// Brightness a full-strength beat wave adds at its crest.
+        let waveGain: Double
+        /// Time constants of brightness following loudness up and down.
+        let attack: TimeInterval
+        let release: TimeInterval
+        /// Brightness with no sound.
+        let floor: Double
+
+        init(_ intensity: SyncIntensity) {
+            switch intensity {
+            case .subtle: (speed, waveGain, attack, release, floor) = (0.5, 0.35, 0.5, 1.6, 0.3)
+            case .moderate: (speed, waveGain, attack, release, floor) = (0.75, 0.5, 0.35, 1.2, 0.25)
+            case .high: (speed, waveGain, attack, release, floor) = (1, 0.65, 0.25, 0.9, 0.2)
+            case .extreme: (speed, waveGain, attack, release, floor) = (1.4, 0.8, 0.15, 0.6, 0.15)
+            }
+        }
+    }
+
+    /// A beat traveling from the middle of the strip to both ends.
+    struct Wave: Sendable {
+        var age: TimeInterval
+        let strength: Double
+    }
+
     /// Strip segments in physical order; they form the gradient.
     public let stripChannels: [UInt8]
     public let lampChannels: [UInt8]
+    private var lastUpdate: TimeInterval?
 
+    // Pulse state.
     /// Palette position shown now, and where it's heading.
     private(set) var position = 0.0
     private var targetPosition = 0.0
     private(set) var pulse = 0.0
     private(set) var level = 0.0
     private var bass = 0.0
-    private var lastUpdate: TimeInterval?
 
-    /// Palette steps per second between beats.
+    // Flow state.
+    private(set) var flowPhase = 0.0
+    private(set) var waves: [Wave] = []
+    private var energy = 0.0
+    private var slowEnergy = 0.0
+    private var slowBass = 0.0
+    private var flowSmoother = ColorSmoother()
+
+    /// Pulse: palette steps per second between beats, and how fast it moves to its next color.
     static let drift = 0.04
-    /// Time constant of the palette moving to its next color.
     static let colorEase = 0.18
     static let attack = 0.04
+
+    /// Flow: palette steps per second at silence and at full loudness (before the intensity multiplier).
+    static let flowSpeedQuiet = 0.05
+    static let flowSpeedLoud = 0.4
+    /// How many palette colors the strip shows at once.
+    static let gradientSpread = 1.2
+    static let waveDuration = 1.0
+    /// Width of a wave's crest, as a fraction of half the strip.
+    static let waveWidth = 0.18
+    /// Final smoothing of every Flow color, so nothing ever steps.
+    static let flowOutputSmoothing = 0.15
 
     public init(stripChannels: [UInt8], lampChannels: [UInt8]) {
         self.stripChannels = stripChannels
@@ -100,8 +153,63 @@ public struct MusicVisualizer: Sendable {
     public mutating func update(features: AudioFeatures, beat: Double?, settings: Settings, now: TimeInterval) -> [UInt8: LightColor] {
         let dt = lastUpdate.map { max(0, now - $0) } ?? 0
         lastUpdate = now
-        let dynamics = Dynamics(settings.intensity)
+        switch settings.style {
+        case .flow: return flow(features: features, beat: beat, settings: settings, dt: dt, now: now)
+        case .pulse: return pulse(features: features, beat: beat, settings: settings, dt: dt)
+        }
+    }
 
+    // MARK: Flow
+
+    private mutating func flow(features: AudioFeatures, beat: Double?, settings: Settings, dt: TimeInterval, now: TimeInterval) -> [UInt8: LightColor] {
+        let dynamics = FlowDynamics(settings.intensity)
+        energy = smooth(energy, toward: features.loudness, dt: dt, attack: dynamics.attack, release: dynamics.release)
+        slowEnergy = smooth(slowEnergy, toward: features.loudness, dt: dt, attack: 0.6, release: 1.8)
+        slowBass = smooth(slowBass, toward: features.bass, dt: dt, attack: 0.4, release: 1.2)
+        flowPhase += dt * (Self.flowSpeedQuiet + (Self.flowSpeedLoud - Self.flowSpeedQuiet) * energy) * dynamics.speed
+
+        for index in waves.indices { waves[index].age += dt }
+        waves.removeAll { $0.age >= Self.waveDuration }
+        if let beat {
+            waves.append(Wave(age: 0, strength: beat * dynamics.waveGain))
+            if waves.count > 6 { waves.removeFirst() }
+        }
+
+        var colors: [UInt8: LightColor] = [:]
+        let lastIndex = Double(max(stripChannels.count - 1, 1))
+        for (index, channel) in stripChannels.enumerated() {
+            let along = stripChannels.count > 1 ? Double(index) / lastIndex : 0.5
+            let drive = min(1, 0.6 * energy + waveLevel(at: along))
+            let brightness = dynamics.floor + (1 - dynamics.floor) * drive
+            colors[channel] = settings.palette.color(at: flowPhase + along * Self.gradientSpread).scaled(by: brightness)
+        }
+        for (index, channel) in lampChannels.enumerated() {
+            let drive = min(1, 0.45 * slowEnergy + 0.35 * slowBass)
+            let brightness = dynamics.floor + (1 - dynamics.floor) * drive
+            let position = flowPhase + Self.gradientSpread / 2 + 0.5 + Double(index) * 0.33
+            colors[channel] = settings.palette.color(at: position).scaled(by: brightness)
+        }
+        return flowSmoother.update(toward: colors, timeConstant: Self.flowOutputSmoothing, now: now)
+    }
+
+    /// Brightness the beat waves add at `along` (0 and 1 are the strip's ends). Each wave's crest moves
+    /// from the middle to both ends while it swells and fades (zero at its start and end, so no jumps).
+    func waveLevel(at along: Double) -> Double {
+        let distanceFromMiddle = abs(along - 0.5) * 2
+        var total = 0.0
+        for wave in waves {
+            let progress = wave.age / Self.waveDuration
+            let envelope = sin(.pi * progress)
+            let offset = distanceFromMiddle - progress
+            total += wave.strength * envelope * exp(-offset * offset / (2 * Self.waveWidth * Self.waveWidth))
+        }
+        return min(1, total)
+    }
+
+    // MARK: Pulse
+
+    private mutating func pulse(features: AudioFeatures, beat: Double?, settings: Settings, dt: TimeInterval) -> [UInt8: LightColor] {
+        let dynamics = Dynamics(settings.intensity)
         if let beat {
             targetPosition += 1
             pulse = max(pulse, beat * dynamics.pulseGain)
@@ -109,8 +217,8 @@ public struct MusicVisualizer: Sendable {
         targetPosition += dt * Self.drift
         position += (targetPosition - position) * ease(dt, Self.colorEase)
         pulse *= exp(-dt / dynamics.pulseDecay)
-        level = follow(level, toward: features.loudness, dt: dt, release: dynamics.release)
-        bass = follow(bass, toward: features.bass, dt: dt, release: dynamics.release * 0.8)
+        level = smooth(level, toward: features.loudness, dt: dt, attack: Self.attack, release: dynamics.release)
+        bass = smooth(bass, toward: features.bass, dt: dt, attack: Self.attack, release: dynamics.release * 0.8)
 
         var colors: [UInt8: LightColor] = [:]
         let segmentCount = Double(max(stripChannels.count, 1))
@@ -127,9 +235,11 @@ public struct MusicVisualizer: Sendable {
         return colors
     }
 
-    /// Rises quickly, falls with the `release` time constant.
-    private func follow(_ value: Double, toward target: Double, dt: TimeInterval, release: TimeInterval) -> Double {
-        value + (target - value) * ease(dt, target > value ? Self.attack : release)
+    // MARK: Helpers
+
+    /// Follows `target` with separate rise and fall time constants.
+    private func smooth(_ value: Double, toward target: Double, dt: TimeInterval, attack: TimeInterval, release: TimeInterval) -> Double {
+        value + (target - value) * ease(dt, target > value ? attack : release)
     }
 
     private func ease(_ dt: TimeInterval, _ timeConstant: TimeInterval) -> Double {
@@ -146,8 +256,8 @@ public final class MusicSyncEngine: @unchecked Sendable {
         public var visualizer: MusicVisualizer.Settings
         public var brightness: Double
 
-        public init(palette: MusicPalette, intensity: SyncIntensity, brightness: Double) {
-            visualizer = MusicVisualizer.Settings(palette: palette, intensity: intensity)
+        public init(palette: MusicPalette, intensity: SyncIntensity, style: MusicStyle = .flow, brightness: Double) {
+            visualizer = MusicVisualizer.Settings(palette: palette, intensity: intensity, style: style)
             self.brightness = brightness
         }
     }

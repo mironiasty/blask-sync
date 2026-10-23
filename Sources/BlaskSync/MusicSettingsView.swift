@@ -27,6 +27,15 @@ struct MusicSettings: View {
 private struct MusicSettingsPane: View {
     @Bindable var control: LightControl
 
+    private var styleDescription: String {
+        switch control.musicStyle {
+        case .flow:
+            "Colors flow along the strip, faster as the music gets louder. Beats travel through it as soft waves from the middle to the ends; lamps breathe with the energy and bass. Intensity sets how lively it moves."
+        case .pulse:
+            "Colors step to the next palette color on every beat, with a flash. Lamps pulse with the bass. Intensity sets how hard beats hit and how fast they fade."
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -59,6 +68,11 @@ private struct MusicSettingsPane: View {
 
             GroupBox("Look") {
                 VStack(alignment: .leading, spacing: 12) {
+                    Picker("Style", selection: $control.musicStyle) {
+                        Text("Flow").tag(MusicStyle.flow)
+                        Text("Pulse").tag(MusicStyle.pulse)
+                    }
+                    .pickerStyle(.segmented)
                     LabeledContent("Palette") {
                         HStack(spacing: 10) {
                             ForEach(MusicPalette.allCases, id: \.self) { palette in
@@ -77,7 +91,7 @@ private struct MusicSettingsPane: View {
                     LabeledContent("Brightness") {
                         Slider(value: $control.brightness, in: 0...1)
                     }
-                    Text("Colors step to the next palette color on every beat. Strip segments show a moving gradient; lamps take a contrasting color and pulse with the bass. Intensity sets how hard beats hit and how fast they fade.")
+                    Text(styleDescription)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

@@ -82,6 +82,12 @@ final class LightControl {
             updateMusicEngine()
         }
     }
+    var musicStyle: MusicStyle {
+        didSet {
+            UserDefaults.standard.set(musicStyle.rawValue, forKey: Keys.musicStyle)
+            updateMusicEngine()
+        }
+    }
     var musicIntensity: SyncIntensity {
         didSet {
             UserDefaults.standard.set(musicIntensity.rawValue, forKey: Keys.musicIntensity)
@@ -188,6 +194,7 @@ final class LightControl {
         static let syncSource = "sync.source"
         static let musicPalette = "sync.musicPalette"
         static let musicIntensity = "sync.musicIntensity"
+        static let musicStyle = "sync.musicStyle"
     }
 
     init(area: EntertainmentArea, credentials: BridgeCredentials) {
@@ -204,6 +211,7 @@ final class LightControl {
         syncSource = defaults.string(forKey: Keys.syncSource).flatMap(SyncSource.init) ?? .screen
         musicPalette = defaults.string(forKey: Keys.musicPalette).flatMap(MusicPalette.init) ?? .vivid
         musicIntensity = defaults.string(forKey: Keys.musicIntensity).flatMap(SyncIntensity.init) ?? .high
+        musicStyle = defaults.string(forKey: Keys.musicStyle).flatMap(MusicStyle.init) ?? .flow
         let savedDisplay = CGDirectDisplayID(defaults.integer(forKey: Keys.displayID))
         selectedDisplayID = DisplayInfo.all().contains { $0.id == savedDisplay } ? savedDisplay : CGMainDisplayID()
 
@@ -437,7 +445,7 @@ final class LightControl {
     }
 
     private var musicEngineSettings: MusicSyncEngine.Settings {
-        MusicSyncEngine.Settings(palette: musicPalette, intensity: musicIntensity, brightness: brightness)
+        MusicSyncEngine.Settings(palette: musicPalette, intensity: musicIntensity, style: musicStyle, brightness: brightness)
     }
 
     private func updateMusicEngine() {

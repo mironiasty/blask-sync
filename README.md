@@ -91,10 +91,14 @@ allow it.
 - **Analysis.** `AudioAnalyzer` runs a 1024-sample FFT (Accelerate) every ~11 ms: loudness and bass
   (20-150 Hz) / mid (150-2000 Hz) / high (2-10 kHz) levels, each auto-gained against its own recent peak,
   and beats when bass energy jumps 1.45× over its 0.5 s average (at least 0.25 s apart).
-- **Lights.** `MusicVisualizer` steps through a palette (Vivid, Sunset, Ocean, Party) on every beat and
-  drifts slowly in between. Strip segments show a moving gradient; lamps take a contrasting color and pulse
-  with the bass. Brightness follows loudness with a flash on each beat; **Intensity** sets how hard beats hit
-  and how fast they fade. Silence settles to a soft glow.
+- **Lights.** `MusicVisualizer` colors from a palette (Vivid, Sunset, Ocean, Party) in one of two styles:
+  - **Flow** (default): the palette flows along the strip as a gradient, faster as the music gets louder.
+    Beats travel as soft brightness waves from the middle of the strip to its ends, swelling and fading over
+    about a second; lamps breathe with the energy and bass. Brightness rises over ~0.3 s and falls over
+    ~1 s, and a final smoothing pass keeps every step between updates tiny (≈0.04, versus ≈0.78 in Pulse).
+  - **Pulse:** the palette steps to its next color on every beat, with a brightness flash that decays.
+
+  **Intensity** sets how lively Flow moves, or how hard Pulse hits. Silence settles to a soft glow.
 
 ## Under the hood
 
