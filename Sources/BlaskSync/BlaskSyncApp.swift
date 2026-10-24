@@ -5,10 +5,11 @@ struct BlaskSyncApp: App {
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
     private var model: AppModel { appDelegate.model }
+    private var updater: SoftwareUpdater { appDelegate.updater }
 
     var body: some Scene {
         MenuBarExtra {
-            MenuView(model: model)
+            MenuView(model: model, updater: updater)
         } label: {
             // Filled while the lights are being driven.
             Image(nsImage: MenuBarIcon.image(active: model.lightControl?.isStreaming == true))
@@ -16,7 +17,7 @@ struct BlaskSyncApp: App {
         .menuBarExtraStyle(.window)
 
         Settings {
-            SettingsView(model: model)
+            SettingsView(model: model, updater: updater)
         }
 
         Window("Manual Control", id: ManualControlView.windowId) {
@@ -30,6 +31,7 @@ struct BlaskSyncApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Owned here so termination can reach the sync session.
     let model = AppModel()
+    let updater = SoftwareUpdater()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // The bundled app sets LSUIElement; this covers `swift run`, which has no Info.plist.

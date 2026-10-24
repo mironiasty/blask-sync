@@ -4,6 +4,7 @@ import SwiftUI
 /// The Settings window (⌘,): bridge and area in General, screen mapping in Screen, music sync in Music.
 struct SettingsView: View {
     let model: AppModel
+    let updater: SoftwareUpdater
     @AppStorage("settingsTab") private var selection = Tab.general
 
     enum Tab: String {
@@ -14,7 +15,7 @@ struct SettingsView: View {
         // Explicit tags: without them SwiftUI infers tab identity from the content, and two tabs whose
         // content shares an `.id` showed the same toolbar label.
         TabView(selection: $selection) {
-            GeneralSettings(model: model)
+            GeneralSettings(model: model, updater: updater)
                 .tabItem { Label("General", systemImage: "gearshape") }
                 .tag(Tab.general)
             ScreenSettings(model: model)
@@ -31,6 +32,7 @@ struct SettingsView: View {
 
 private struct GeneralSettings: View {
     let model: AppModel
+    @Bindable var updater: SoftwareUpdater
     @State private var manualHost = ""
     @AppStorage(LightControl.turnOffWhenStoppingKey) private var turnOffWhenStopping = false
 
@@ -55,6 +57,13 @@ private struct GeneralSettings: View {
                 } footer: {
                     Text("Applies to Stop Sync and to closing Manual Control. Otherwise the lights return to how they were before syncing. Turn Lights On in the menu bar uses your last manual colors.")
                 }
+            }
+
+            Section("Updates") {
+                LabeledContent("Version", value: updater.version)
+                Toggle("Check for updates automatically", isOn: $updater.automaticallyChecks)
+                Button("Check Now", action: updater.checkForUpdates)
+                    .disabled(!updater.canCheckForUpdates)
             }
 
             if let error = model.errorMessage {

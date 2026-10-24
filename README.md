@@ -43,14 +43,24 @@ xattr -dr com.apple.quarantine /Applications/BlaskSync.app
 (or try opening it, then click **Open Anyway** in System Settings → Privacy & Security). Every release is
 signed with the same certificate, so Screen Recording carries over when updating.
 
+### Updates
+
+From 0.2.0 on, the app updates itself with [Sparkle](https://sparkle-project.org): it checks once a day (or
+via **Check for Updates…** in the menu bar panel and Settings → General), shows the release notes, then
+installs and relaunches. The feed is the `appcast.xml` attached to the latest GitHub release, and each
+update's zip must carry an EdDSA signature matching `SUPublicEDKey` in `Info.plist`. Updating needs the app
+in Applications with the quarantine cleared; macOS runs a quarantined app from a read-only copy.
+
 ### Making a release
 
 Push a version tag; the [Release workflow](.github/workflows/release.yml) runs the tests, builds a universal
-(Apple Silicon + Intel) app stamped with that version, and publishes it as a GitHub release. It signs with the certificate in the `SIGNING_P12` (base64 `.p12`) and
-`SIGNING_P12_PASSWORD` repository secrets:
+(Apple Silicon + Intel) app stamped with that version, and publishes it as a GitHub release with its update feed (`scripts/make-appcast.sh`, release notes from the
+commits since the previous tag). It uses three repository secrets: the code signing certificate in
+`SIGNING_P12` (base64 `.p12`) and `SIGNING_P12_PASSWORD`, and the Sparkle update signing key in
+`SPARKLE_PRIVATE_KEY` (from `generate_keys --account blask-sync -x`):
 
 ```sh
-git tag v0.1.0 && git push origin v0.1.0
+git tag -a v0.2.0 -m "Blask Sync 0.2.0" && git push origin v0.2.0
 ```
 
 ### Signing
@@ -74,8 +84,9 @@ certificate, install Apple's [WWDR G3 intermediate](https://www.apple.com/certif
   while in Manual hands the lights straight back to that sync. The icon (a monitor with a
   sparkle) fills in while the lights are driven.
 - **Settings (⌘,)**
-  - **General:** bridge discovery, pairing and forgetting, the default entertainment area, and whether the
-    lights turn off when sync stops (instead of returning to how they were).
+  - **General:** bridge discovery, pairing and forgetting, the default entertainment area, whether the
+    lights turn off when sync stops (instead of returning to how they were), and updates (version, automatic
+    checks, Check Now).
   - **Screen:** the mapping canvas and an inspector with Capture (display, intensity), Color (brightness,
     saturation boost, minimum brightness), the channel list and the selected channel's details. Settings doesn't capture the screen:
     the monitor shows the live picture only while screen sync runs.
@@ -210,7 +221,7 @@ full path):
 | `Sources/BlaskSync` | The SwiftUI menu bar app, Settings and Manual Control windows |
 | `Tests/` | Unit tests for `HueKit` and `SyncCore` |
 | `Resources/` | `Info.plist` (LSUIElement, local network usage, Bonjour service) and `AppIcon.icns` |
-| `scripts/` | `bundle.sh` (build, bundle, sign), `make-icon.swift` and `make-icns.sh` (app icon) |
+| `scripts/` | `bundle.sh` (build, bundle, sign), `make-appcast.sh` (update feed), `make-icon.swift` and `make-icns.sh` (app icon) |
 
 ## App icon
 
