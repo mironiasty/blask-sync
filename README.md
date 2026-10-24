@@ -64,13 +64,15 @@ in Applications with the quarantine cleared; macOS runs a quarantined app from a
 ### Making a release
 
 Push a version tag; the [Release workflow](.github/workflows/release.yml) runs the tests, builds a universal
-(Apple Silicon + Intel) app stamped with that version, and publishes it as a GitHub release with its update feed (`scripts/make-appcast.sh`, release notes from the
-commits since the previous tag). It uses three repository secrets: the code signing certificate in
+(Apple Silicon + Intel) app stamped with that version, and publishes it as a GitHub release with its update feed (`scripts/make-appcast.sh`). The release notes,
+shown on the release page and in the app's update window, are the tag message after its first line
+(`scripts/release-notes.sh`; without one, the commits since the previous tag). It uses three repository secrets: the code signing certificate in
 `SIGNING_P12` (base64 `.p12`) and `SIGNING_P12_PASSWORD`, and the Sparkle update signing key in
 `SPARKLE_PRIVATE_KEY` (from `generate_keys --account blask-sync -x`):
 
 ```sh
-git tag -a v0.2.0 -m "Blask Sync 0.2.0" && git push origin v0.2.0
+# notes.md: "Blask Sync 0.2.0", a blank line, then Markdown (## headings, - bullets, **bold**, `code`)
+git tag -a --cleanup=whitespace v0.2.0 -F notes.md && git push origin v0.2.0
 ```
 
 ### Signing

@@ -20,6 +20,10 @@ jobs:
           # All tags, so the update's release notes can list the commits since the previous one.
           fetch-depth: 0
 
+      # Checkout fetches the pushed tag without its message; fetch it again so the release notes are there.
+      - name: Fetch tag message
+        run: git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+
       - name: Test
         run: swift test
 
@@ -71,4 +75,9 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" "BlaskSync-${GITHUB_REF_NAME}.zip" appcast.xml --title "Blask Sync ${GITHUB_REF_NAME#v}" --generate-notes
+        run: |
+          scripts/release-notes.sh "$GITHUB_REF_NAME" > release-notes.md
+          PREVIOUS="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          [[ -n "$PREVIOUS" ]] && printf '\n**Full changelog:** https://github.com/%s/compare/%s...%s\n' "$GITHUB_REPOSITORY" "$PREVIOUS" "$GITHUB_REF_NAME" >> release-notes.md
+          gh release create "$GITHUB_REF_NAME" "BlaskSync-${GITHUB_REF_NAME}.zip" appcast.xml \
+            --title "Blask Sync ${GITHUB_REF_NAME#v}" --notes-file release-notes.md
