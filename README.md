@@ -95,7 +95,9 @@ certificate, install Apple's [WWDR G3 intermediate](https://www.apple.com/certif
   sparkle) fills in while the lights are driven.
 - **Settings (⌘,)**
   - **General:** bridge discovery, pairing and forgetting, the default entertainment area, whether the
-    lights turn off when sync stops (instead of returning to how they were), and updates (version, automatic
+    lights turn off when sync stops (instead of returning to how they were), whether they turn off while the
+    Mac sleeps (on by default; also when the display turns off unless music sync is playing, and sync or the
+    lights come back when the display wakes), and updates (version, automatic
     checks, Check Now).
   - **Screen:** the mapping canvas and an inspector with Capture (display, intensity), Color (brightness,
     saturation boost, minimum brightness), the channel list and the selected channel's details. Settings doesn't capture the screen:

@@ -33,6 +33,7 @@ final class AppModel {
     private static let defaultAreaKey = "defaultAreaId"
 
     private let store = CredentialStore()
+    @ObservationIgnored private var sleepMonitor: SleepMonitor?
     private var pairingTask: Task<Void, Never>?
     private static let pairingTimeout = 30
 
@@ -49,6 +50,10 @@ final class AppModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+        sleepMonitor = SleepMonitor(
+            onSleep: { [weak self] displayOnly in await self?.lightControl?.prepareForSleep(displayOnly: displayOnly) },
+            onWake: { [weak self] in await self?.lightControl?.wakeFromSleep() }
+        )
         Task {
             if credentials != nil {
                 await refreshAreas()

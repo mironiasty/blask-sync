@@ -35,6 +35,7 @@ private struct GeneralSettings: View {
     @Bindable var updater: SoftwareUpdater
     @State private var manualHost = ""
     @AppStorage(LightControl.turnOffWhenStoppingKey) private var turnOffWhenStopping = false
+    @AppStorage(LightControl.turnOffWhenSleepingKey) private var turnOffWhenSleeping = true
 
     var body: some View {
         Form {
@@ -56,6 +57,13 @@ private struct GeneralSettings: View {
                     Text("When Sync Stops")
                 } footer: {
                     Text("Applies to Stop Sync and to closing Manual Control. Otherwise the lights return to how they were before syncing. Turn Lights On in the menu bar uses your last manual colors.")
+                }
+                Section {
+                    Toggle("Turn lights off when your Mac sleeps", isOn: $turnOffWhenSleeping)
+                } header: {
+                    Text("Sleep")
+                } footer: {
+                    Text("Also when the display turns off, unless music sync is playing. When you wake your Mac, sync or the lights come back on.")
                 }
             }
 

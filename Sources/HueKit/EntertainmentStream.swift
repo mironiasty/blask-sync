@@ -41,6 +41,7 @@ public final class EntertainmentStream: @unchecked Sendable {
     private let credentials: BridgeCredentials
     private let client: BridgeClient
     private let frameInterval: DispatchTimeInterval
+    private let fadeIn: Duration?
     private let onFailure: @Sendable (Error) -> Void
 
     private let queue = DispatchQueue(label: "blask.entertainment-stream", qos: .userInteractive)
@@ -48,17 +49,22 @@ public final class EntertainmentStream: @unchecked Sendable {
     private var connection: NWConnection?
     private var timer: DispatchSourceTimer?
     private var sendStats = IntervalStats()
+    /// When the first colors went out; the fade-in counts from here. Only touched on `queue`.
+    private var firstFrame: ContinuousClock.Instant?
     private static let logger = Logger(subsystem: "local.blasksync", category: "stream")
 
     /// - Parameters:
     ///   - initialColors: Colors sent from the first frame on, keyed by channel ID. May be empty: nothing
     ///     is sent until colors arrive, so the lights keep their current state instead of jumping to a placeholder.
+    ///   - fadeIn: If set, the lights rise from black to the colors over this long, counted from the
+    ///     first colors sent.
     ///   - onFailure: Called on the stream's queue if the connection drops after starting.
     public init(
         credentials: BridgeCredentials,
         areaId: String,
         initialColors: [UInt8: LightColor],
         framesPerSecond: Int = 50,
+        fadeIn: Duration? = nil,
         onFailure: @escaping @Sendable (Error) -> Void
     ) {
         self.credentials = credentials
@@ -66,6 +72,7 @@ public final class EntertainmentStream: @unchecked Sendable {
         self.client = BridgeClient(credentials: credentials)
         self.colors = OSAllocatedUnfairLock(initialState: initialColors)
         self.frameInterval = .microseconds(1_000_000 / framesPerSecond)
+        self.fadeIn = fadeIn
         self.onFailure = onFailure
     }
 
@@ -141,13 +148,27 @@ public final class EntertainmentStream: @unchecked Sendable {
 
     /// Must be called on `queue`.
     private func sendFrame() {
-        let colors = colors.withLock { $0 }
+        var colors = colors.withLock { $0 }
         guard !colors.isEmpty else { return }
+        let now = ContinuousClock.now
+        if firstFrame == nil { firstFrame = now }
+        if let fadeIn, let firstFrame {
+            let level = Self.fadeLevel(elapsed: now - firstFrame, duration: fadeIn)
+            if level < 1 { colors = colors.mapValues { $0.scaled(by: level) } }
+        }
         let message = HueStreamMessage.encode(areaId: areaId, colors: colors)
         connection?.send(content: message, completion: .idempotent)
         if let summary = sendStats.record() {
             Self.logger.notice("sent \(summary.description, privacy: .public)")
         }
+    }
+
+    /// Brightness factor `elapsed` into a fade-in, from 0 to 1. Eases in (quadratic), since the eye
+    /// notices the first steps up from darkness far more than the last ones.
+    static func fadeLevel(elapsed: Duration, duration: Duration) -> Double {
+        guard duration > .zero else { return 1 }
+        let progress = min(max(elapsed / duration, 0), 1)
+        return progress * progress
     }
 
     /// DTLS 1.2 with a pre-shared key: identity = application key, key = decoded client key.

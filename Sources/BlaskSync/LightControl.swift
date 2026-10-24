@@ -247,8 +247,8 @@ final class LightControl {
 
     // MARK: Sync control
 
-    /// Starts streaming with the lights following the chosen source.
-    func startSync() async {
+    /// Starts streaming with the lights following the chosen source, fading them in over `fadeIn` if set.
+    func startSync(fadeIn: Duration? = nil) async {
         if syncSource == .screen, !ScreenCapture.hasPermission {
             captureState = .needsPermission
             return
@@ -260,7 +260,7 @@ final class LightControl {
             updateEngines()
             return
         }
-        await start()
+        await start(fadeIn: fadeIn)
     }
 
     // MARK: Power
@@ -301,7 +301,7 @@ final class LightControl {
 
     /// Really switches the area's lights on or off. Turning off first stops sync, Manual Control and
     /// identifying, since streaming would otherwise keep them lit.
-    func setPower(_ on: Bool) async {
+    func setPower(_ on: Bool, transition: Duration? = nil) async {
         errorMessage = nil
         if !on, state != .stopped {
             await stop()
@@ -309,10 +309,64 @@ final class LightControl {
             try? await Task.sleep(for: .milliseconds(400))
         }
         do {
-            try await BridgeClient(credentials: credentials).setPower(on, lightIds: area.lightIds, applicationKey: credentials.applicationKey)
+            try await BridgeClient(credentials: credentials)
+                .setPower(on, lightIds: area.lightIds, applicationKey: credentials.applicationKey, transition: transition)
             lightsOn = on
         } catch {
             errorMessage = "Couldn't turn the lights \(on ? "on" : "off"): \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: Sleep
+
+    /// Settings → General: switch the lights off while the Mac or its display sleeps. On by default.
+    static let turnOffWhenSleepingKey = "sync.turnOffWhenSleeping"
+
+    /// How long the lights take to come back up after wake, so they don't jump to full brightness.
+    private static let wakeFade = Duration.seconds(2)
+
+    /// What to bring back when the displays wake; nil unless the lights were switched off for sleep.
+    private var resumeAfterSleep: SleepResume?
+    private enum SleepResume {
+        /// Sync or Manual Control was streaming; `mode` still says which.
+        case streaming
+        case lightsOn
+    }
+
+    /// Stops streaming and switches the lights off, remembering what to bring back on wake. When only
+    /// the display sleeps, music sync keeps playing.
+    func prepareForSleep(displayOnly: Bool) async {
+        guard UserDefaults.standard.object(forKey: Self.turnOffWhenSleepingKey) as? Bool ?? true,
+              resumeAfterSleep == nil else { return }
+        if displayOnly, isStreaming, mode == .music { return }
+        if isStreaming, !streamingForIdentify {
+            resumeAfterSleep = .streaming
+        } else {
+            if lightsOn == nil { await refreshPower() }
+            guard lightsOn == true else { return }
+            resumeAfterSleep = .lightsOn
+        }
+        await setPower(false)
+    }
+
+    /// Brings back what `prepareForSleep` switched off, fading the lights in, retrying while Wi-Fi
+    /// reconnects. Gives up if the lights are taken over in the meantime.
+    func wakeFromSleep() async {
+        guard let resume = resumeAfterSleep else { return }
+        resumeAfterSleep = nil
+        for attempt in 0..<10 {
+            if attempt > 0 {
+                try? await Task.sleep(for: .seconds(2))
+                guard state == .stopped, resumeAfterSleep == nil else { return }
+            }
+            switch resume {
+            case .streaming:
+                if mode == .manual { await start(fadeIn: Self.wakeFade) } else { await startSync(fadeIn: Self.wakeFade) }
+                if state != .stopped || captureState == .needsPermission { return }
+            case .lightsOn:
+                await setPower(true, transition: Self.wakeFade)
+                if lightsOn == true { return }
+            }
         }
     }
 
@@ -460,7 +514,8 @@ final class LightControl {
         pushColors()
     }
 
-    func start() async {
+    /// - Parameter fadeIn: If set, the lights rise from black over this long instead of jumping in.
+    func start(fadeIn: Duration? = nil) async {
         guard state == .stopped else { return }
         state = .starting
         errorMessage = nil
@@ -472,6 +527,7 @@ final class LightControl {
             // Screen mode never falls back to the manual colors (white by default): with no screen
             // colors yet, the stream waits and the lights keep their current state.
             initialColors: followsSync ? (mode == .music ? musicColors : liveColors) : outputColors,
+            fadeIn: fadeIn,
             onFailure: { [weak self] error in
                 Task { @MainActor in self?.streamDropped(error) }
             }

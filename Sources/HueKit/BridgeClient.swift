@@ -151,8 +151,11 @@ public final class BridgeClient: Sendable {
     }
 
     /// Switches lights on or off through the regular API (they stay that way, unlike streamed colors).
-    public func setPower(_ on: Bool, lightIds: [String], applicationKey: String) async throws {
-        let body = try JSONSerialization.data(withJSONObject: ["on": ["on": on]])
+    /// - Parameter transition: How long the lights take to fade to the new state; the bridge's default if nil.
+    public func setPower(_ on: Bool, lightIds: [String], applicationKey: String, transition: Duration? = nil) async throws {
+        var state: [String: Any] = ["on": ["on": on]]
+        if let transition { state["dynamics"] = ["duration": Int(transition / .milliseconds(1))] }
+        let body = try JSONSerialization.data(withJSONObject: state)
         try await withThrowingTaskGroup(of: Void.self) { group in
             for id in lightIds {
                 group.addTask {

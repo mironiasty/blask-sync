@@ -41,3 +41,17 @@ struct HueStreamMessageTests {
         }
     }
 }
+
+struct FadeInTests {
+    @Test func risesFromBlackToFull() {
+        let fade = Duration.seconds(4)
+        #expect(EntertainmentStream.fadeLevel(elapsed: .zero, duration: fade) == 0)
+        #expect(EntertainmentStream.fadeLevel(elapsed: .seconds(2), duration: fade) == 0.25)
+        #expect(EntertainmentStream.fadeLevel(elapsed: .seconds(4), duration: fade) == 1)
+        #expect(EntertainmentStream.fadeLevel(elapsed: .seconds(9), duration: fade) == 1)
+    }
+
+    @Test func zeroDurationIsFullAtOnce() {
+        #expect(EntertainmentStream.fadeLevel(elapsed: .zero, duration: .zero) == 1)
+    }
+}
