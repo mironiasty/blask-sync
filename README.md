@@ -30,9 +30,15 @@ Entertainment streaming API.
 
 ```sh
 swift test             # unit tests
-scripts/bundle.sh      # builds and signs build/BlaskSync.app
-open build/BlaskSync.app
+scripts/bundle.sh      # builds and signs build/BlaskSync Dev.app
+open "build/BlaskSync Dev.app"
 ```
+
+Local builds are **Blask Sync Dev**, so they can be installed next to a release and told apart: bundle ID
+`local.blasksync.BlaskSync.dev`, an orange DEV badge on the app icon, an orange menu bar icon, and no
+self-updating (so a release never replaces them). They keep their own settings and permissions, but share the
+bridge pairing in `~/Library/Application Support/BlaskSync/bridge.json`. `VARIANT=release scripts/bundle.sh`
+builds the published app, `build/BlaskSync.app`, as the release workflow does.
 
 ### Installing a release
 
@@ -230,5 +236,6 @@ full path):
 ## App icon
 
 `scripts/make-icon.swift` draws the icon (a monitor with a spectrum halo and a sparkle) with CoreGraphics.
-`scripts/make-icns.sh` renders it at every macOS size into `Resources/AppIcon.icns`, which `bundle.sh` copies
-into the app, and writes `docs/icon.png` for this README. The menu bar icon is drawn in code in `Sources/BlaskSync/MenuBarIcon.swift`.
+`scripts/make-icns.sh` renders it at every macOS size into `Resources/AppIcon.icns` (and the DEV-badged
+`Resources/AppIcon-Dev.icns` for local builds), which `bundle.sh` copies into the app, and writes
+`docs/icon.png` for this README. The menu bar icon is drawn in code in `Sources/BlaskSync/MenuBarIcon.swift`.

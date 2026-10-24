@@ -10,7 +10,7 @@ struct MenuView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Blask Sync").font(.headline)
+            Text(AppVariant.name).font(.headline)
 
             if model.credentials == nil {
                 Text("Not connected to a Hue Bridge.")
@@ -50,9 +50,11 @@ struct MenuView: View {
                 Button("Settings…", action: showSettings)
                     .keyboardShortcut(",")
                 Spacer()
-                Button("Check for Updates…", action: updater.checkForUpdates)
-                    .disabled(!updater.canCheckForUpdates)
-                Spacer()
+                if updater.isAvailable {
+                    Button("Check for Updates…", action: updater.checkForUpdates)
+                        .disabled(!updater.canCheckForUpdates)
+                    Spacer()
+                }
                 Button("Quit", action: model.quit)
                     .keyboardShortcut("q")
             }

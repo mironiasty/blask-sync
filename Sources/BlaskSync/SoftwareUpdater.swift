@@ -4,12 +4,15 @@ import Sparkle
 
 /// Checks for, downloads and installs new releases through Sparkle. The feed (`SUFeedURL`) is the
 /// `appcast.xml` attached to the latest GitHub release; updates must be signed with the key in
-/// `SUPublicEDKey`.
+/// `SUPublicEDKey`. Development builds have no feed, so they never replace themselves with a release.
 @MainActor
 @Observable
 final class SoftwareUpdater: NSObject, SPUStandardUserDriverDelegate {
-    /// False while a check or update is already in progress, and when running outside an app bundle.
+    /// False while a check or update is already in progress, and when updates aren't available.
     private(set) var canCheckForUpdates = false
+
+    /// Whether this build updates itself: release builds do, development builds and `swift run` don't.
+    var isAvailable: Bool { controller != nil }
 
     @ObservationIgnored private var controller: SPUStandardUpdaterController?
     @ObservationIgnored private var canCheckObservation: NSKeyValueObservation?
@@ -32,8 +35,8 @@ final class SoftwareUpdater: NSObject, SPUStandardUserDriverDelegate {
 
     override init() {
         super.init()
-        // `swift run` has no Info.plist, so no feed or key to check against.
-        guard Bundle.main.bundleURL.pathExtension == "app" else { return }
+        // Development builds drop the feed from Info.plist; `swift run` has no Info.plist at all.
+        guard Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil else { return }
         let controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: self)
         self.controller = controller
         canCheckObservation = controller.updater.observe(\.canCheckForUpdates, options: [.initial, .new]) { [weak self] updater, _ in

@@ -43,6 +43,7 @@ jobs:
       - name: Build app
         env:
           SIGN_IDENTITY: Blask Sync Release Signing
+          VARIANT: release
           UNIVERSAL: "1"
           VERSION: ${{ github.ref_name }}
           BUILD_NUMBER: ${{ github.run_number }}

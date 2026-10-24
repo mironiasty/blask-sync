@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Builds BlaskSync and wraps it in build/BlaskSync.app.
+# Builds BlaskSync and wraps it in an app bundle.
 # Usage: scripts/bundle.sh [debug|release]
+# By default this is the development app, build/BlaskSync Dev.app ("Blask Sync Dev", bundle ID ending in
+# .dev, DEV-badged icon, no self-updating), which installs next to the release without sharing its settings
+# or permissions. VARIANT=release builds the published app, build/BlaskSync.app, as the release workflow does.
 # UNIVERSAL=1 builds for both Apple Silicon and Intel. VERSION (e.g. 1.2.0) and BUILD_NUMBER, if set,
 # are stamped into the app's Info.plist.
 # Signs with SIGN_IDENTITY if set, else the first "Apple Development" certificate, else ad hoc.
@@ -14,7 +17,14 @@ ARCH_FLAGS=()
 swift build -c "$CONFIG" "${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}"
 BIN_DIR="$(swift build -c "$CONFIG" "${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}" --show-bin-path)"
 
-APP="build/BlaskSync.app"
+VARIANT="${VARIANT:-dev}"
+if [[ "$VARIANT" == release ]]; then
+    APP="build/BlaskSync.app"
+    ICON="Resources/AppIcon.icns"
+else
+    APP="build/BlaskSync Dev.app"
+    ICON="Resources/AppIcon-Dev.icns"
+fi
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN_DIR/BlaskSync" "$APP/Contents/MacOS/BlaskSync"
@@ -22,9 +32,15 @@ cp "$BIN_DIR/BlaskSync" "$APP/Contents/MacOS/BlaskSync"
 ditto "$BIN_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/BlaskSync"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
-cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
-[[ -n "${VERSION:-}" ]] && /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
-[[ -n "${BUILD_NUMBER:-}" ]] && /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Contents/Info.plist"
+cp "$ICON" "$APP/Contents/Resources/AppIcon.icns"
+PLIST="$APP/Contents/Info.plist"
+if [[ "$VARIANT" != release ]]; then
+    BUNDLE_ID="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$PLIST")"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID.dev" -c "Set :CFBundleName Blask Sync Dev" \
+        -c "Delete :SUFeedURL" -c "Delete :SUEnableAutomaticChecks" "$PLIST"
+fi
+[[ -n "${VERSION:-}" ]] && /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$PLIST"
+[[ -n "${BUILD_NUMBER:-}" ]] && /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST"
 IDENTITY="${SIGN_IDENTITY:-$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development/ { print $2; exit }')}"
 # Sparkle's nested helpers first, then the app, so every piece carries the same signature.
 codesign --force --deep --sign "${IDENTITY:--}" "$APP/Contents/Frameworks/Sparkle.framework"

@@ -1,6 +1,7 @@
 // Renders the Blask Sync app icon with CoreGraphics.
 // Usage: swift scripts/make-icon.swift <output.png> [variant]
-// Variants: halo-sparkle (the app icon), halo, sparkle. scripts/make-icns.sh builds Resources/AppIcon.icns.
+// Variants: halo-sparkle (the app icon), dev (the app icon with a DEV badge, for local builds), halo, sparkle.
+// scripts/make-icns.sh builds Resources/AppIcon.icns and Resources/AppIcon-Dev.icns.
 import AppKit
 import CoreImage
 
@@ -230,6 +231,27 @@ func drawSparkle(_ ctx: CGContext, center: CGPoint, radius: CGFloat, glow: CGFlo
     ctx.restoreGState()
 }
 
+/// An orange "DEV" pill across the monitor's foot, so local builds stand out in the Dock and Finder.
+func drawDevBadge(_ ctx: CGContext) {
+    let badge = CGRect(x: 512 - 190, y: 150, width: 380, height: 150)
+    ctx.saveGState()
+    ctx.setShadow(offset: CGSize(width: 0, height: -10), blur: 30, color: color(0x000000, 0.5))
+    ctx.addPath(roundedRect(badge, 75))
+    ctx.setFillColor(color(0xFB7C3C))
+    ctx.fillPath()
+    ctx.restoreGState()
+
+    let text = NSAttributedString(string: "DEV", attributes: [
+        .font: NSFont.systemFont(ofSize: 104, weight: .heavy),
+        .foregroundColor: NSColor.white,
+        .kern: 6,
+    ])
+    let line = CTLineCreateWithAttributedString(text)
+    let bounds = CTLineGetImageBounds(line, ctx)
+    ctx.textPosition = CGPoint(x: badge.midX - bounds.midX, y: badge.midY - bounds.midY)
+    CTLineDraw(line, ctx)
+}
+
 // MARK: Variants
 
 func render(_ variant: String) -> CGImage {
@@ -252,19 +274,20 @@ func render(_ variant: String) -> CGImage {
         let screen = CGRect(x: 512 - 270, y: 560 - 168, width: 540, height: 336)
         drawHalo(ctx, screen: screen, spread: 95, blur: 55, intensity: 1)
         drawMonitor(ctx, screen: screen)
-    default: // halo-sparkle
+    default: // halo-sparkle, dev
         let screen = CGRect(x: 512 - 270, y: 560 - 168, width: 540, height: 336)
         drawHalo(ctx, screen: screen, spread: 95, blur: 55, intensity: 1)
         drawMonitor(ctx, screen: screen)
         drawSparkle(ctx, center: CGPoint(x: screen.maxX - 70, y: screen.maxY - 64), radius: 95, glow: 22)
     }
     drawBodyRim(ctx)
+    if variant == "dev" { drawDevBadge(ctx) }
     return ctx.makeImage()!
 }
 
 let arguments = CommandLine.arguments
 guard arguments.count >= 2 else {
-    print("usage: swift make-icon.swift <output.png> [halo-sparkle|halo|sparkle]")
+    print("usage: swift make-icon.swift <output.png> [halo-sparkle|dev|halo|sparkle]")
     exit(1)
 }
 let image = render(arguments.count > 2 ? arguments[2] : "halo-sparkle")

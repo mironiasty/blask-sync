@@ -1,7 +1,8 @@
 import AppKit
 
 /// The menu bar icon: a monitor with the app icon's sparkle on its screen. Drawn as a template image,
-/// so macOS tints it for light and dark menu bars.
+/// so macOS tints it for light and dark menu bars, except in development builds, where it's orange to
+/// tell it apart from the release running alongside.
 enum MenuBarIcon {
     /// - Parameter active: Filled screen (sparkle cut out) while the lights are driven; outline otherwise.
     static func image(active: Bool) -> NSImage {
@@ -9,13 +10,13 @@ enum MenuBarIcon {
             draw(active: active)
             return true
         }
-        image.isTemplate = true
-        image.accessibilityDescription = active ? "Blask Sync, syncing" : "Blask Sync"
+        image.isTemplate = !AppVariant.isDevelopment
+        image.accessibilityDescription = active ? "\(AppVariant.name), syncing" : AppVariant.name
         return image
     }
 
     private static func draw(active: Bool) {
-        NSColor.black.set()
+        (AppVariant.isDevelopment ? NSColor.systemOrange : NSColor.black).set()
         let screen = NSRect(x: 2.25, y: 2.75, width: 13.5, height: 9.25)
         let screenPath = NSBezierPath(roundedRect: screen, xRadius: 2, yRadius: 2)
 

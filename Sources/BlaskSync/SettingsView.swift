@@ -61,9 +61,14 @@ private struct GeneralSettings: View {
 
             Section("Updates") {
                 LabeledContent("Version", value: updater.version)
-                Toggle("Check for updates automatically", isOn: $updater.automaticallyChecks)
-                Button("Check Now", action: updater.checkForUpdates)
-                    .disabled(!updater.canCheckForUpdates)
+                if updater.isAvailable {
+                    Toggle("Check for updates automatically", isOn: $updater.automaticallyChecks)
+                    Button("Check Now", action: updater.checkForUpdates)
+                        .disabled(!updater.canCheckForUpdates)
+                } else {
+                    Text("Development builds don't update themselves.")
+                        .foregroundStyle(.secondary)
+                }
             }
 
             if let error = model.errorMessage {
