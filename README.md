@@ -6,7 +6,7 @@
 
 <p align="center">Philips Hue sync for your Mac's screen and music</p>
 
-<p align="center"><a href="https://mironiasty.github.io/blask-sync/">Website</a> · <a href="https://github.com/mironiasty/blask-sync/releases/latest">Download</a></p>
+<p align="center"><a href="https://blask.miron.asia/">Website</a> · <a href="https://github.com/mironiasty/blask-sync/releases/latest">Download</a></p>
 
 
 A menu bar app that syncs Philips Hue lights with your screen, like an ambilight, or with the music your
