@@ -31,20 +31,21 @@ open build/BlaskSync.app
 ### Installing a release
 
 Download `BlaskSync-vX.Y.Z.zip` from [Releases](https://github.com/mironiasty/blask-sync/releases), unzip it
-and move **BlaskSync.app** to Applications. Release builds are signed ad hoc, not notarized, so macOS blocks
-the first launch; clear the download quarantine once:
+and move **BlaskSync.app** to Applications. Release builds are signed with a self-signed certificate, not
+notarized, so macOS blocks the first launch; clear the download quarantine once:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/BlaskSync.app
 ```
 
-(or try opening it, then click **Open Anyway** in System Settings → Privacy & Security). Each new release is
-a new app to macOS, so Screen Recording has to be granted again after updating.
+(or try opening it, then click **Open Anyway** in System Settings → Privacy & Security). Every release is
+signed with the same certificate, so Screen Recording and the saved bridge pairing carry over when updating.
 
 ### Making a release
 
 Push a version tag; the [Release workflow](.github/workflows/release.yml) runs the tests, builds a universal
-(Apple Silicon + Intel) app stamped with that version, and publishes it as a GitHub release:
+(Apple Silicon + Intel) app stamped with that version, and publishes it as a GitHub release. It signs with the certificate in the `SIGNING_P12` (base64 `.p12`) and
+`SIGNING_P12_PASSWORD` repository secrets:
 
 ```sh
 git tag v0.1.0 && git push origin v0.1.0
