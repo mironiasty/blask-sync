@@ -14,7 +14,7 @@ public struct DiscoveredBridge: Identifiable, Hashable, Sendable {
     }
 }
 
-/// Everything needed to talk to a paired bridge. Persisted in the Keychain.
+/// Everything needed to talk to a paired bridge. Persisted by `CredentialStore`.
 public struct BridgeCredentials: Codable, Sendable, Equatable {
     public let bridgeId: String
     public var host: String
@@ -236,7 +236,6 @@ public enum HueError: LocalizedError, Equatable {
     case http(status: Int)
     case unexpectedResponse
     case certificateMismatch(expected: String)
-    case keychain(OSStatus)
     case invalidClientKey
     case streamingHandshakeTimeout
 
@@ -256,8 +255,6 @@ public enum HueError: LocalizedError, Equatable {
             "Unexpected response from the bridge."
         case .certificateMismatch(let expected):
             "The device's certificate doesn't belong to bridge \(expected)."
-        case .keychain(let status):
-            "Keychain error \(status): \(SecCopyErrorMessageString(status, nil) as String? ?? "unknown")"
         case .invalidClientKey:
             "The stored client key is malformed. Forget the bridge and pair again."
         case .streamingHandshakeTimeout:

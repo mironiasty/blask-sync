@@ -39,7 +39,7 @@ xattr -dr com.apple.quarantine /Applications/BlaskSync.app
 ```
 
 (or try opening it, then click **Open Anyway** in System Settings → Privacy & Security). Every release is
-signed with the same certificate, so Screen Recording and the saved bridge pairing carry over when updating.
+signed with the same certificate, so Screen Recording carries over when updating.
 
 ### Making a release
 
@@ -53,14 +53,12 @@ git tag v0.1.0 && git push origin v0.1.0
 
 ### Signing
 
-macOS ties the Keychain item holding the bridge credentials, and the Screen Recording permission, to the
-app's code signature. `scripts/bundle.sh` signs with `SIGN_IDENTITY` if set, else the first
+macOS ties the Screen Recording permission to the app's code signature. `scripts/bundle.sh` signs with `SIGN_IDENTITY` if set, else the first
 "Apple Development" certificate, else ad hoc.
 
 - **With a certificate** (add your Apple ID in Xcode → Settings → Accounts → Manage Certificates → Apple
   Development), the permissions survive rebuilds.
-- **Ad hoc**, every rebuild is a new app to macOS: the Keychain asks for your password and Screen Recording
-  has to be granted again.
+- **Ad hoc**, every rebuild is a new app to macOS: Screen Recording has to be granted again.
 
 If `security find-identity -v -p codesigning` lists no valid identity even though Xcode created a
 certificate, install Apple's [WWDR G3 intermediate](https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer).
@@ -151,7 +149,8 @@ allow it.
 2. **Pair** POSTs `{"devicetype": "blask-sync#<host>", "generateclientkey": true}` to `/api` every 2 s for
    30 s while you press the bridge's link button.
 3. The returned `username` (the CLIP v2 application key) and `clientkey` (the DTLS PSK for streaming) go into
-   the login Keychain under the service `local.blasksync.bridge`.
+   `~/Library/Application Support/BlaskSync/bridge.json`, readable only by your user. A file rather than the
+   Keychain, so builds signed differently (local and release) share the pairing without password prompts.
 
 The bridge's certificate is issued by Signify's private CA. The app accepts it only when its common name
 equals the bridge ID. If the bridge gets a new IP from DHCP, the app finds it again by ID.
@@ -204,7 +203,7 @@ full path):
 
 | Path | What |
 |---|---|
-| `Sources/HueKit` | Hue protocol: discovery, pairing, CLIP v2, Keychain storage, strip/lamp classification, DTLS streaming |
+| `Sources/HueKit` | Hue protocol: discovery, pairing, CLIP v2, credential storage, strip/lamp classification, DTLS streaming |
 | `Sources/SyncCore` | Screen and audio capture, screen mapping, color extraction, smoothing, audio analysis and the music visualizer. No UI code |
 | `Sources/BlaskSync` | The SwiftUI menu bar app, Settings and Manual Control windows |
 | `Tests/` | Unit tests for `HueKit` and `SyncCore` |
