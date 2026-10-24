@@ -16,6 +16,10 @@ mood.
 **Status:** bridge discovery and pairing, screen sync, music sync and manual light control over the Hue
 Entertainment streaming API.
 
+> **A note on how this was made:** Blask Sync is fully vibecoded. All the code was written by an AI
+> ([Claude Code](https://claude.com/claude-code)) from my ideas and feedback. To be honest, I wouldn't have
+> the time to write all of it myself, and without AI this app simply wouldn't exist.
+
 ## Requirements
 
 - macOS 14.2+
