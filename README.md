@@ -28,6 +28,28 @@ scripts/bundle.sh      # builds and signs build/BlaskSync.app
 open build/BlaskSync.app
 ```
 
+### Installing a release
+
+Download `BlaskSync-vX.Y.Z.zip` from [Releases](https://github.com/mironiasty/blask-sync/releases), unzip it
+and move **BlaskSync.app** to Applications. Release builds are signed ad hoc, not notarized, so macOS blocks
+the first launch; clear the download quarantine once:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/BlaskSync.app
+```
+
+(or try opening it, then click **Open Anyway** in System Settings → Privacy & Security). Each new release is
+a new app to macOS, so Screen Recording has to be granted again after updating.
+
+### Making a release
+
+Push a version tag; the [Release workflow](.github/workflows/release.yml) runs the tests, builds a universal
+(Apple Silicon + Intel) app stamped with that version, and publishes it as a GitHub release:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
+
 ### Signing
 
 macOS ties the Keychain item holding the bridge credentials, and the Screen Recording permission, to the

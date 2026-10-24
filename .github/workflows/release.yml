@@ -1,0 +1,36 @@
+# Pushing a tag like v1.2.0 tests, builds and publishes BlaskSync.app as a GitHub release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # Xcode 26+ is needed for the SwiftUI macro plugin.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test
+        run: swift test
+
+      - name: Build app
+        env:
+          UNIVERSAL: "1"
+          VERSION: ${{ github.ref_name }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          export VERSION="${VERSION#v}"
+          scripts/bundle.sh release
+
+      - name: Zip
+        run: ditto -c -k --keepParent build/BlaskSync.app "BlaskSync-${GITHUB_REF_NAME}.zip"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "BlaskSync-${GITHUB_REF_NAME}.zip" --title "Blask Sync ${GITHUB_REF_NAME#v}" --generate-notes
