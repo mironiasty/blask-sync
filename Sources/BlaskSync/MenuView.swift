@@ -7,6 +7,7 @@ struct MenuView: View {
     let updater: SoftwareUpdater
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
+    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -62,6 +63,8 @@ struct MenuView: View {
         }
         .padding()
         .frame(width: 300)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+        .background(MenuPanelSizer(contentHeight: contentHeight))
         .onAppear {
             // Safety net: if loading failed earlier, opening the menu tries again.
             if model.credentials != nil, model.areas.isEmpty {
