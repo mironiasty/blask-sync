@@ -242,4 +242,5 @@ full path):
 `scripts/make-icon.swift` draws the icon (a monitor with a spectrum halo and a sparkle) with CoreGraphics.
 `scripts/make-icns.sh` renders it at every macOS size into `Resources/AppIcon.icns` (and the DEV-badged
 `Resources/AppIcon-Dev.icns` for local builds), which `bundle.sh` copies into the app, and writes
-`docs/icon.png` for this README. The menu bar icon is drawn in code in `Sources/BlaskSync/MenuBarIcon.swift`.
+`docs/icon.png` for this README. From the same render, `scripts/make-web-images.swift` makes the website's
+link preview (`docs/social.png`, 1200×630) and home screen icon (`docs/apple-touch-icon.png`). The menu bar icon is drawn in code in `Sources/BlaskSync/MenuBarIcon.swift`.

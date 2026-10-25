@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Renders the app icon at every macOS size into Resources/AppIcon.icns, plus docs/icon.png for the README,
-# and the DEV-badged icon for local builds into Resources/AppIcon-Dev.icns.
+# the DEV-badged icon for local builds into Resources/AppIcon-Dev.icns, and the website's link preview
+# (docs/social.png) and home screen icon (docs/apple-touch-icon.png).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -24,4 +25,5 @@ make_icns halo-sparkle Resources/AppIcon.icns
 make_icns dev Resources/AppIcon-Dev.icns
 mkdir -p docs
 cp "$WORK/halo-sparkle.iconset/icon_256x256@2x.png" docs/icon.png
-echo "Wrote Resources/AppIcon.icns, Resources/AppIcon-Dev.icns and docs/icon.png"
+swift scripts/make-web-images.swift "$WORK/halo-sparkle-1024.png" docs
+echo "Wrote Resources/AppIcon.icns, Resources/AppIcon-Dev.icns, docs/icon.png, docs/social.png and docs/apple-touch-icon.png"
