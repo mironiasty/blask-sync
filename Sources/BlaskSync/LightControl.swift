@@ -181,6 +181,10 @@ final class LightControl {
     /// Whether the SCStream is actually running; it pauses while `pausedForApp` is set.
     private var captureStreamRunning = false
     private var reconcilingCapture = false
+    /// Set when the system stopped the SCStream mid-sync (display asleep or reconfigured, screen
+    /// locked); starting it again is then retried until it works instead of giving up.
+    private var captureInterrupted = false
+    private static let captureRetryInterval = Duration.seconds(2)
 
     /// True while the stream runs only so `identify` can light a channel: no screen or audio capture,
     /// and it stops again when identifying ends.
@@ -808,6 +812,11 @@ final class LightControl {
                 do {
                     try await capture.start(displayID: selectedDisplayID, excludedBundleIDs: excludedBundleIDs)
                 } catch {
+                    if captureInterrupted, ScreenCapture.hasPermission, self.capture === capture {
+                        captureState = .failed("Screen capture was interrupted (\(error.localizedDescription)). Reconnecting…")
+                        try? await Task.sleep(for: Self.captureRetryInterval)
+                        continue
+                    }
                     await stopCapture()
                     captureState = ScreenCapture.hasPermission ? .failed(error.localizedDescription) : .needsPermission
                     return
@@ -818,6 +827,7 @@ final class LightControl {
                     continue
                 }
                 captureStreamRunning = true
+                captureInterrupted = false
                 captureState = .capturing
             } else {
                 await capture.stop()
@@ -858,6 +868,7 @@ final class LightControl {
         let capture = self.capture
         self.capture = nil
         captureStreamRunning = false
+        captureInterrupted = false
         updateActivity()
         engine?.stop()
         engine = nil
@@ -872,12 +883,21 @@ final class LightControl {
         await startCapture()
     }
 
+    /// The system stopped the stream. Without permission that's final; otherwise it's usually the display
+    /// going away for a while, so the lights hold their colors and capture starts again once it can.
     private func captureStopped(_ error: Error) {
-        guard capture != nil else { return }
-        Task {
-            await stopCapture()
-            captureState = .failed("Screen capture stopped: \(error.localizedDescription)")
+        guard capture != nil, captureStreamRunning else { return }
+        guard ScreenCapture.hasPermission else {
+            Task {
+                await stopCapture()
+                captureState = .needsPermission
+            }
+            return
         }
+        Self.logger.notice("capture stopped (\(error.localizedDescription, privacy: .public)); restarting")
+        captureStreamRunning = false
+        captureInterrupted = true
+        Task { await reconcileCaptureStream() }
     }
 }
 
