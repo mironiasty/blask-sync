@@ -1,0 +1,34 @@
+# Blask Sync
+
+> Blask Sync is a free, open-source Hue Sync alternative for Mac. It's a macOS menu bar app that syncs Philips Hue lights with your screen, like an ambilight, or with the music your Mac plays. Philips' own Hue Sync app for Mac is no longer supported; Blask Sync keeps screen and music sync working on current macOS.
+
+Blask Sync streams colors to Hue lights over the Hue Entertainment API, so they react without noticeable lag.
+
+## Features
+
+- Screen sync: lights behind and around the monitor follow the picture, like an ambilight. Captures up to 60 frames per second, with smooth easing at four intensity levels, a saturation boost and a minimum brightness.
+- Music sync: lights move with everything the Mac plays (Spotify, Apple Music, YouTube and others), following beat, bass, mids and treble. No virtual audio driver needed. Four palettes (Vivid, Sunset, Ocean, Party) and two styles (Flow, Pulse).
+- Manual control: set each light's color on a color wheel, or pick a scene (warm, neutral or cool white, or a palette). Colors stay after quitting.
+- Light mapping: place each light around a picture of the monitor; each follows the screen area it's pointed at. Real lights glow in their marker's color while being arranged.
+- Gradient lightstrips (such as the Hue Play gradient lightstrip) get a separate color per segment.
+- Lights switch off when the Mac or its display sleeps, and fade back in on wake.
+- Updates itself (from version 0.2.0).
+- Private: screen and audio are processed on the Mac and never leave it.
+
+## Requirements
+
+- macOS 14.2 or later, Apple Silicon or Intel
+- Philips Hue Bridge v2 or Hue Bridge Pro
+- An entertainment area set up in the Hue app
+
+## Price and license
+
+Free and open source under the MIT license. No account, subscription or in-app purchase.
+
+## Links
+
+- [Website](https://blask.miron.asia/)
+- [Download the latest release](https://github.com/mironiasty/blask-sync/releases/latest)
+- [Source code on GitHub](https://github.com/mironiasty/blask-sync)
+
+Blask Sync is an independent project, not affiliated with or endorsed by Signify or Philips Hue. Philips Hue and Hue Sync are trademarks of Signify Holding.
