@@ -28,6 +28,8 @@
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.2</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026 Miron Pawlik</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
