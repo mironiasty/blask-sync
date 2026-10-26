@@ -9,7 +9,7 @@ struct BlaskSyncApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuView(model: model, updater: updater)
+            MenuView(model: model)
         } label: {
             // Filled while the lights are being driven.
             Image(nsImage: MenuBarIcon.image(active: model.lightControl?.isStreaming == true))
