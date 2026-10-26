@@ -482,7 +482,8 @@ private struct ScenesPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Scenes").font(.headline)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8)], spacing: 8) {
+            // Top-aligned, so a name that wraps to two lines doesn't push its swatch out of line.
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8, alignment: .top)], spacing: 8) {
                 ForEach(Self.whites, id: \.name) { white in
                     SceneChip(name: white.name, fill: AnyShapeStyle(white.color.color)) {
                         control.setAllColors(white.color)
@@ -531,6 +532,7 @@ private struct SceneChip: View {
                     .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.35)))
                 Text(name)
                     .font(.caption)
+                    .multilineTextAlignment(.center)
             }
         }
         .buttonStyle(.plain)

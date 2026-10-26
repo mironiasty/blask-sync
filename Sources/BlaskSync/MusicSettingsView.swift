@@ -76,7 +76,7 @@ private struct MusicSettingsPane: View {
                     }
                     .pickerStyle(.segmented)
                     LabeledContent("Palette") {
-                        HStack(spacing: 10) {
+                        HStack(alignment: .top, spacing: 10) {
                             ForEach(MusicPalette.allCases, id: \.self) { palette in
                                 PaletteButton(palette: palette, isSelected: control.musicPalette == palette) {
                                     control.musicPalette = palette
@@ -220,6 +220,7 @@ private struct PaletteButton: View {
                 )
                 Text(palette.title)
                     .font(.caption)
+                    .multilineTextAlignment(.center)
                     .foregroundStyle(isSelected ? .primary : .secondary)
             }
         }
