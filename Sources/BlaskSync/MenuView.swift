@@ -1,7 +1,7 @@
 import HueKit
 import SwiftUI
 
-/// The menu bar panel: start and stop sync, open manual control. Setup lives in Settings.
+/// The menu bar panel: start and stop sync, basic manual control. Setup lives in Settings.
 struct MenuView: View {
     let model: AppModel
     let updater: SoftwareUpdater
@@ -90,17 +90,27 @@ struct MenuView: View {
         .labelsHidden()
 
         if control.mode == .manual {
-            Button("Show Manual Control", action: showManualControl)
+            // The basics; the window adds the color wheel and per-light editing.
+            BrightnessBar(control: control, edited: Set(control.area.channels.map(\.id)))
+            ScenesPanel(control: control)
+            Button("More Controls…", action: showManualControl)
                 .buttonStyle(.link)
                 .font(.callout)
         }
 
-        SyncButton(control: control, large: true)
+        // Manual has nothing to start or stop: the lights show the colors, or they're off.
+        if control.mode != .manual {
+            SyncButton(control: control, large: true)
+        }
 
         Button {
             Task {
                 if control.lightsOn == false {
-                    await control.turnOnWithManualColors()
+                    if control.mode == .manual {
+                        await control.start()
+                    } else {
+                        await control.turnOnWithManualColors()
+                    }
                 } else {
                     await control.setPower(false)
                 }
@@ -144,7 +154,6 @@ struct MenuView: View {
             set: { selection in
                 switch selection {
                 case .manual:
-                    showManualControl()
                     Task { await control.beginManual() }
                 case .screen, .music:
                     let source: LightControl.SyncSource = selection == .screen ? .screen : .music

@@ -2,7 +2,8 @@ import HueKit
 import SwiftUI
 import SyncCore
 
-/// The "Manual Control" window. While open, the lights show the colors picked here.
+/// The "Manual Control" window: the full color editor. Opening it switches the lights to manual colors;
+/// closing it leaves them there (the menu bar switches back to sync).
 struct ManualControlView: View {
     static let windowId = "manual-control"
 
@@ -68,9 +69,7 @@ private struct ManualControlPanel: View {
             ManualColorStudio(control: control)
         }
         .frame(minWidth: 820, minHeight: 560)
-        // Opening the window takes over the lights; closing hands them back.
         .task { await control.beginManual() }
-        .onDisappear { Task { await control.endManual() } }
     }
 }
 
@@ -177,7 +176,7 @@ private struct ManualColorStudio: View {
             VStack(alignment: .leading, spacing: 20) {
                 LightsPanel(control: control, selection: $selection)
                 ScenesPanel(control: control)
-                Text("Drag a pin on the wheel to recolor a light. With several lights selected, they turn together. Closing this window hands the lights back to sync if it was running, or releases them.")
+                Text("Drag a pin on the wheel to recolor a light. With several lights selected, they turn together. The lights keep these colors after this window closes; switch back to screen or music sync from the menu bar.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -350,7 +349,7 @@ private struct Pin: View {
 
 // MARK: Brightness
 
-private struct BrightnessBar: View {
+struct BrightnessBar: View {
     let control: LightControl
     let edited: Set<UInt8>
 
@@ -469,7 +468,7 @@ private struct LightsPanel: View {
 
 // MARK: Scenes
 
-private struct ScenesPanel: View {
+struct ScenesPanel: View {
     let control: LightControl
 
     private static let whites: [(name: String, color: LightColor)] = [
