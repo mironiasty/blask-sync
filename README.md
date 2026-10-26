@@ -40,6 +40,19 @@ self-updating (so a release never replaces them). They keep their own settings a
 bridge pairing in `~/Library/Application Support/BlaskSync/bridge.json`. `VARIANT=release scripts/bundle.sh`
 builds the published app, `build/BlaskSync.app`, as the release workflow does.
 
+### Translations
+
+The app is translated into Polish, German, Spanish and French and follows the language set in System Settings →
+General → Language & Region (per app, too). The text lives in String Catalogs: `Resources/Localizable.xcstrings`
+for the app and `Resources/InfoPlist.xcstrings` for the permission prompts; `scripts/bundle.sh` compiles them
+into the app. After changing UI text, run `scripts/update-strings.sh` to add new strings to the catalog, then
+translate them (Xcode's String Catalog editor shows what's missing). Text built in code rather than passed to a
+SwiftUI view needs `String(localized:)` to be picked up. To try a language without changing the system:
+
+```sh
+open "build/BlaskSync Dev.app" --args -AppleLanguages '(pl)'
+```
+
 ### Installing a release
 
 Download `BlaskSync-vX.Y.Z.zip` from [Releases](https://github.com/mironiasty/blask-sync/releases), unzip it

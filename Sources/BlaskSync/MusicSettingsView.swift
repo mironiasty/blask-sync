@@ -32,9 +32,9 @@ private struct MusicSettingsPane: View {
     private var styleDescription: String {
         switch control.musicStyle {
         case .flow:
-            "Colors flow along the strip, faster as the music gets louder. Beats travel through it as soft waves from the middle to the ends; lamps breathe with the energy and bass. Intensity sets how lively it moves."
+            String(localized: "Colors flow along the strip, faster as the music gets louder. Beats travel through it as soft waves from the middle to the ends; lamps breathe with the energy and bass. Intensity sets how lively it moves.")
         case .pulse:
-            "Colors step to the next palette color on every beat, with a flash. Lamps pulse with the bass. Intensity sets how hard beats hit and how fast they fade."
+            String(localized: "Colors step to the next palette color on every beat, with a flash. Lamps pulse with the bass. Intensity sets how hard beats hit and how fast they fade.")
         }
     }
 
@@ -76,7 +76,7 @@ private struct MusicSettingsPane: View {
                     }
                     .pickerStyle(.segmented)
                     LabeledContent("Palette") {
-                        HStack(spacing: 10) {
+                        HStack(alignment: .top, spacing: 10) {
                             ForEach(MusicPalette.allCases, id: \.self) { palette in
                                 PaletteButton(palette: palette, isSelected: control.musicPalette == palette) {
                                     control.musicPalette = palette
@@ -86,7 +86,7 @@ private struct MusicSettingsPane: View {
                     }
                     Picker("Intensity", selection: $control.musicIntensity) {
                         ForEach(SyncIntensity.allCases, id: \.self) { intensity in
-                            Text(intensity.rawValue.capitalized).tag(intensity)
+                            Text(intensity.title).tag(intensity)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -151,10 +151,10 @@ private struct AudioMeters: View {
     private var meters: [(name: String, value: Double, color: Color)] {
         let features = control.audioFeatures
         return [
-            ("Level", features.loudness, .white),
-            ("Bass", features.bass, .pink),
-            ("Mid", features.mid, .orange),
-            ("High", features.high, .cyan),
+            (String(localized: "meter.level", defaultValue: "Level", comment: "Audio meter"), features.loudness, .white),
+            (String(localized: "meter.bass", defaultValue: "Bass", comment: "Audio meter"), features.bass, .pink),
+            (String(localized: "meter.mid", defaultValue: "Mid", comment: "Audio meter"), features.mid, .orange),
+            (String(localized: "meter.high", defaultValue: "High", comment: "Audio meter"), features.high, .cyan),
         ]
     }
 }
@@ -218,8 +218,9 @@ private struct PaletteButton: View {
                     RoundedRectangle(cornerRadius: 4)
                         .strokeBorder(isSelected ? Color.accentColor : .secondary.opacity(0.4), lineWidth: isSelected ? 2.5 : 1)
                 )
-                Text(palette.rawValue.capitalized)
+                Text(palette.title)
                     .font(.caption)
+                    .multilineTextAlignment(.center)
                     .foregroundStyle(isSelected ? .primary : .secondary)
             }
         }

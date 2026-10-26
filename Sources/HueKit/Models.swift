@@ -242,23 +242,23 @@ public enum HueError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .linkButtonTimeout:
-            "The link button wasn't pressed in time. Try again."
+            String(localized: "The link button wasn't pressed in time. Try again.")
         case .missingClientKey:
-            "The bridge didn't return a client key. Update the bridge firmware in the Hue app."
+            String(localized: "The bridge didn't return a client key. Update the bridge firmware in the Hue app.")
         case .unauthorized:
-            "The bridge no longer accepts this app's key. Forget the bridge and pair again."
+            String(localized: "The bridge no longer accepts this app's key. Forget the bridge and pair again.")
         case .bridge(_, let description):
-            "Bridge error: \(description)"
+            String(localized: "Bridge error: \(description)")
         case .http(let status):
-            "The bridge responded with HTTP \(status)."
+            String(localized: "The bridge responded with HTTP \(status).")
         case .unexpectedResponse:
-            "Unexpected response from the bridge."
+            String(localized: "Unexpected response from the bridge.")
         case .certificateMismatch(let expected):
-            "The device's certificate doesn't belong to bridge \(expected)."
+            String(localized: "The device's certificate doesn't belong to bridge \(expected).")
         case .invalidClientKey:
-            "The stored client key is malformed. Forget the bridge and pair again."
+            String(localized: "The stored client key is malformed. Forget the bridge and pair again.")
         case .streamingHandshakeTimeout:
-            "The bridge didn't accept the streaming connection in time."
+            String(localized: "The bridge didn't accept the streaming connection in time.")
         }
     }
 }

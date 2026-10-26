@@ -36,6 +36,7 @@ private struct GeneralSettings: View {
     @State private var manualHost = ""
     @AppStorage(LightControl.turnOffWhenStoppingKey) private var turnOffWhenStopping = false
     @AppStorage(LightControl.turnOffWhenSleepingKey) private var turnOffWhenSleeping = true
+    @State private var language = AppLanguage.current
 
     var body: some View {
         Form {
@@ -65,6 +66,23 @@ private struct GeneralSettings: View {
                 } footer: {
                     Text("Also when the display turns off, unless music sync is playing. When you wake your Mac, sync or the lights come back on.")
                 }
+            }
+
+            Section {
+                Picker("Language", selection: $language) {
+                    ForEach(AppLanguage.allCases) { Text($0.title).tag($0) }
+                }
+                .onChange(of: language) { AppLanguage.current = language }
+                if language != AppLanguage.atLaunch {
+                    HStack {
+                        Text("Relaunch Blask Sync to use the new language.")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Relaunch") { NSApp.relaunch() }
+                    }
+                }
+            } header: {
+                Text("Language")
             }
 
             Section("Updates") {
@@ -97,7 +115,7 @@ private struct GeneralSettings: View {
                 .foregroundStyle(.green)
                 .font(.title2)
             VStack(alignment: .leading) {
-                Text(credentials.name ?? "Hue Bridge")
+                Text(credentials.name ?? String(localized: "Hue Bridge"))
                 Text("\(credentials.host) · \(credentials.bridgeId)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -124,7 +142,7 @@ private struct GeneralSettings: View {
                 Image(systemName: "dot.radiowaves.left.and.right")
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading) {
-                    Text(bridge.name ?? "Hue Bridge")
+                    Text(bridge.name ?? String(localized: "Hue Bridge"))
                     Text(bridge.host).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -150,7 +168,7 @@ private struct GeneralSettings: View {
                     ForEach(model.areas) { area in
                         VStack(alignment: .leading) {
                             Text(area.name)
-                            Text("\(area.configurationType.capitalized) · \(area.channels.count) channels")
+                            Text("\(area.configurationTitle) · \(area.channels.count) channels")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

@@ -106,19 +106,19 @@ struct SyncStatusLabel: View {
     }
 
     private var text: String {
-        if control.identifiedChannel != nil, control.state == .streaming { return "Identifying lights" }
+        if control.identifiedChannel != nil, control.state == .streaming { return String(localized: "Identifying lights") }
         return switch control.state {
         case .streaming where control.mode == .screen && control.pausedForApp != nil:
-            "Paused while \(control.pausedForApp ?? "") is in front"
+            String(localized: "Paused while \(control.pausedForApp ?? "") is in front")
         case .streaming:
             switch control.mode {
-            case .screen: "Syncing with screen"
-            case .music: "Syncing with music"
-            case .manual: "Manual control"
+            case .screen: String(localized: "Syncing with screen")
+            case .music: String(localized: "Syncing with music")
+            case .manual: String(localized: "Manual control")
             }
-        case .starting: "Connecting…"
-        case .stopping: "Stopping…"
-        case .stopped: "Off"
+        case .starting: String(localized: "Connecting…")
+        case .stopping: String(localized: "Stopping…")
+        case .stopped: String(localized: "Off")
         }
     }
 }
@@ -441,7 +441,7 @@ private struct LightsPanel: View {
                             }
                             .frame(width: 40, height: 40)
                             .overlay(Circle().strokeBorder(isHighlighted(channel) ? Color.accentColor : .clear, lineWidth: 2.5).padding(-4))
-                            Text(description?.name.nilIfEmpty ?? "Channel \(channel)")
+                            Text(description?.name.nilIfEmpty ?? String(localized: "Channel \(channel)"))
                                 .font(.caption)
                                 .lineLimit(1)
                         }
@@ -473,16 +473,17 @@ private struct ScenesPanel: View {
     let control: LightControl
 
     private static let whites: [(name: String, color: LightColor)] = [
-        ("Warm", LightColor(red: 1, green: 0.66, blue: 0.36)),
-        ("Neutral", LightColor(red: 1, green: 0.86, blue: 0.7)),
-        ("Cool", LightColor(red: 0.82, green: 0.9, blue: 1)),
-        ("Off", .black),
+        (String(localized: "Warm", comment: "White light scene"), LightColor(red: 1, green: 0.66, blue: 0.36)),
+        (String(localized: "Neutral", comment: "White light scene"), LightColor(red: 1, green: 0.86, blue: 0.7)),
+        (String(localized: "Cool", comment: "White light scene"), LightColor(red: 0.82, green: 0.9, blue: 1)),
+        (String(localized: "Off", comment: "Light scene that switches the lights off"), .black),
     ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Scenes").font(.headline)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8)], spacing: 8) {
+            // Top-aligned, so a name that wraps to two lines doesn't push its swatch out of line.
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8, alignment: .top)], spacing: 8) {
                 ForEach(Self.whites, id: \.name) { white in
                     SceneChip(name: white.name, fill: AnyShapeStyle(white.color.color)) {
                         control.setAllColors(white.color)
@@ -490,7 +491,7 @@ private struct ScenesPanel: View {
                 }
                 ForEach(MusicPalette.allCases, id: \.self) { palette in
                     SceneChip(
-                        name: palette.rawValue.capitalized,
+                        name: palette.title,
                         fill: AnyShapeStyle(LinearGradient(colors: palette.colors.map(\.color), startPoint: .leading, endPoint: .trailing))
                     ) {
                         control.setColors(sceneColors(palette))
@@ -531,6 +532,7 @@ private struct SceneChip: View {
                     .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.secondary.opacity(0.35)))
                 Text(name)
                     .font(.caption)
+                    .multilineTextAlignment(.center)
             }
         }
         .buttonStyle(.plain)

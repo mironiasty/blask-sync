@@ -11,7 +11,7 @@ enum MenuBarIcon {
             return true
         }
         image.isTemplate = !AppVariant.isDevelopment
-        image.accessibilityDescription = active ? "\(AppVariant.name), syncing" : AppVariant.name
+        image.accessibilityDescription = active ? String(localized: "\(AppVariant.name), syncing") : AppVariant.name
         return image
     }
 

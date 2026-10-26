@@ -18,7 +18,7 @@ final class SoftwareUpdater: NSObject, SPUStandardUserDriverDelegate {
     @ObservationIgnored private var canCheckObservation: NSKeyValueObservation?
 
     var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "development"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? String(localized: "development", comment: "Version shown for builds without one")
     }
 
     var automaticallyChecks: Bool {

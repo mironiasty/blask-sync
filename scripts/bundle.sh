@@ -33,6 +33,10 @@ ditto "$BIN_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/BlaskSync"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp "$ICON" "$APP/Contents/Resources/AppIcon.icns"
+# Translations: each String Catalog becomes <language>.lproj/*.strings(dict) next to the icon.
+for CATALOG in Resources/*.xcstrings; do
+    xcrun xcstringstool compile "$CATALOG" --output-directory "$APP/Contents/Resources"
+done
 PLIST="$APP/Contents/Info.plist"
 if [[ "$VARIANT" != release ]]; then
     BUNDLE_ID="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$PLIST")"

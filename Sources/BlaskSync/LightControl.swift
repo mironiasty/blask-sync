@@ -299,7 +299,7 @@ final class LightControl {
             }
             lightsOn = colorsByLight.values.contains { $0.contains { $0.color.hueState.brightness > 0 } }
         } catch {
-            errorMessage = "Couldn't turn the lights on: \(error.localizedDescription)"
+            errorMessage = String(localized: "Couldn't turn the lights on: \(error.localizedDescription)")
         }
     }
 
@@ -317,7 +317,9 @@ final class LightControl {
                 .setPower(on, lightIds: area.lightIds, applicationKey: credentials.applicationKey, transition: transition)
             lightsOn = on
         } catch {
-            errorMessage = "Couldn't turn the lights \(on ? "on" : "off"): \(error.localizedDescription)"
+            errorMessage = on
+                ? String(localized: "Couldn't turn the lights on: \(error.localizedDescription)")
+                : String(localized: "Couldn't turn the lights off: \(error.localizedDescription)")
         }
     }
 
@@ -552,7 +554,7 @@ final class LightControl {
             updateEngines()
         } catch {
             state = .stopped
-            errorMessage = "Couldn't start streaming: \(error.localizedDescription)"
+            errorMessage = String(localized: "Couldn't start streaming: \(error.localizedDescription)")
             updateEngines()
         }
     }
@@ -586,7 +588,7 @@ final class LightControl {
         updateActivity()
         state = .stopped
         updateEngines()
-        errorMessage = "Streaming stopped: \(error.localizedDescription)"
+        errorMessage = String(localized: "Streaming stopped: \(error.localizedDescription)")
         Task { await stream.stop() }
     }
 
@@ -721,15 +723,6 @@ final class LightControl {
         }
     }
 
-    /// macOS only applies a newly granted Screen Recording permission after a relaunch.
-    func relaunch() {
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, _ in
-            DispatchQueue.main.async { NSApplication.shared.terminate(nil) }
-        }
-    }
-
     private var engineSettings: ScreenSyncEngine.Settings {
         ScreenSyncEngine.Settings(
             mapping: mapping,
@@ -813,7 +806,7 @@ final class LightControl {
                     try await capture.start(displayID: selectedDisplayID, excludedBundleIDs: excludedBundleIDs)
                 } catch {
                     if captureInterrupted, ScreenCapture.hasPermission, self.capture === capture {
-                        captureState = .failed("Screen capture was interrupted (\(error.localizedDescription)). Reconnecting…")
+                        captureState = .failed(String(localized: "Screen capture was interrupted (\(error.localizedDescription)). Reconnecting…"))
                         try? await Task.sleep(for: Self.captureRetryInterval)
                         continue
                     }

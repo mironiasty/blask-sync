@@ -64,7 +64,7 @@ struct ScreenMappingView: View {
 
 private struct LegendItem: View {
     let symbol: String?
-    let text: String
+    let text: LocalizedStringKey
 
     var body: some View {
         HStack(spacing: 6) {
@@ -454,7 +454,7 @@ private struct Inspector: View {
                         }
                         Picker("Intensity", selection: $control.intensity) {
                             ForEach(SyncIntensity.allCases, id: \.self) { intensity in
-                                Text(intensity.rawValue.capitalized).tag(intensity)
+                                Text(intensity.title).tag(intensity)
                             }
                         }
                         Toggle("Pause for Apple TV app", isOn: $control.pauseForProtectedApps)
@@ -493,7 +493,7 @@ private struct Inspector: View {
 }
 
 private struct PercentSlider: View {
-    let title: String
+    let title: LocalizedStringKey
     @Binding var value: Double
     let range: ClosedRange<Double>
 
@@ -547,11 +547,11 @@ private struct SelectedChannelDetails: View {
     }
 
     private func title(_ channelId: UInt8) -> String {
-        guard let description = control.channelDescriptions[channelId] else { return "Channel \(channelId)" }
+        guard let description = control.channelDescriptions[channelId] else { return String(localized: "Channel \(channelId)") }
         if case .stripSegment(let index, _) = description.kind {
-            return "Segment \(index + 1) · \(description.strip?.name ?? "")"
+            return String(localized: "Segment \(index + 1) · \(description.strip?.name ?? "")")
         }
-        return description.name.nilIfEmpty ?? "Channel \(channelId)"
+        return description.name.nilIfEmpty ?? String(localized: "Channel \(channelId)")
     }
 
     private func symbol(_ channelId: UInt8) -> String {
@@ -562,13 +562,13 @@ private struct SelectedChannelDetails: View {
 
     private func explanation(_ channelId: UInt8, _ region: ScreenRegion) -> String {
         guard control.isLamp(channelId) else {
-            return "Gradient strip segment. Follows the screen area under it."
+            return String(localized: "Gradient strip segment. Follows the screen area under it.")
         }
         guard region.distanceFromScreen > 0 else {
-            return "Lamp on the screen. Follows the area under it. Drag it onto the wall if it stands beside the screen."
+            return String(localized: "Lamp on the screen. Follows the area under it. Drag it onto the wall if it stands beside the screen.")
         }
         let blend = Int((region.ambientBlend * 100).rounded())
-        return "Lamp beside the screen. Follows the nearest screen area (outlined), mixed with \(blend)% of the overall screen color."
+        return String(localized: "Lamp beside the screen. Follows the nearest screen area (outlined), mixed with \(blend)% of the overall screen color.")
     }
 }
 
@@ -592,7 +592,7 @@ private struct ChannelList: View {
                 ForEach(control.lampChannels, id: \.self) { channelId in
                     let description = control.channelDescriptions[channelId]
                     Label(
-                        description?.name.nilIfEmpty ?? "Channel \(channelId)",
+                        description?.name.nilIfEmpty ?? String(localized: "Channel \(channelId)"),
                         systemImage: LightSymbol.name(for: description?.lights.first?.archetype)
                     )
                     .tag(channelId)
@@ -617,11 +617,12 @@ struct CaptureStatusBanner: View {
             EmptyView()
         case .needsPermission:
             banner(
-                "Blask Sync needs Screen Recording permission to sample your screen.",
-                detail: "After allowing it in System Settings, relaunch the app."
+                String(localized: "Blask Sync needs Screen Recording permission to sample your screen."),
+                detail: String(localized: "After allowing it in System Settings, relaunch the app.")
             ) {
                 Button("Grant Access…", action: control.requestScreenPermission)
-                Button("Relaunch", action: control.relaunch)
+                // macOS only applies a newly granted Screen Recording permission after a relaunch.
+                Button("Relaunch") { NSApp.relaunch() }
             }
         case .failed(let message):
             banner(message, detail: nil) { EmptyView() }
