@@ -973,6 +973,7 @@
       }
     },
     "Check for Updates…": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {

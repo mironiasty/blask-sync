@@ -83,7 +83,7 @@ signed with the same certificate, so Screen Recording carries over when updating
 ### Updates
 
 From 0.2.0 on, the app updates itself with [Sparkle](https://sparkle-project.org): it checks once a day (or
-via **Check for Updates…** in the menu bar panel and Settings → General), shows the release notes, then
+via **Check Now** in Settings → General), shows the release notes, then
 installs and relaunches. The feed is the `appcast.xml` attached to the latest GitHub release, and each
 update's zip must carry an EdDSA signature matching `SUPublicEDKey` in `Info.plist`. Updating needs the app
 in Applications with the quarantine cleared; macOS runs a quarantined app from a read-only copy.

@@ -4,7 +4,6 @@ import SwiftUI
 /// The menu bar panel: start and stop sync, basic manual control. Setup lives in Settings.
 struct MenuView: View {
     let model: AppModel
-    let updater: SoftwareUpdater
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
     @State private var contentHeight: CGFloat = 0
@@ -51,11 +50,6 @@ struct MenuView: View {
                 Button("Settings…", action: showSettings)
                     .keyboardShortcut(",")
                 Spacer()
-                if updater.isAvailable {
-                    Button("Check for Updates…", action: updater.checkForUpdates)
-                        .disabled(!updater.canCheckForUpdates)
-                    Spacer()
-                }
                 Button("Quit", action: model.quit)
                     .keyboardShortcut("q")
             }
