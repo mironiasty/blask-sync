@@ -1,0 +1,78 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSAudioCaptureUsageDescription": {
+      "comment": "Info.plist",
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync hört die Musik, die Ihr Mac abspielt, damit Ihre Lichter darauf reagieren. Das Audio verlässt Ihren Mac nie."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync listens to the music your Mac plays to make your lights react to it. Audio never leaves your Mac."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync escucha la música que reproduce tu Mac para que las luces reaccionen a ella. El audio nunca sale de tu Mac."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync écoute la musique jouée par votre Mac pour que vos lumières y réagissent. L’audio ne quitte jamais votre Mac."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync słucha muzyki odtwarzanej na Macu, aby światła na nią reagowały. Dźwięk nigdy nie opuszcza Maca."
+          }
+        }
+      }
+    },
+    "NSLocalNetworkUsageDescription": {
+      "comment": "Info.plist",
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync findet und steuert Ihre Hue Bridge im lokalen Netzwerk."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync finds and controls your Hue Bridge on the local network."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync encuentra y controla tu puente Hue en la red local."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync trouve et pilote votre pont Hue sur le réseau local."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync znajduje mostek Hue w sieci lokalnej i nim steruje."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

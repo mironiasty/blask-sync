@@ -119,7 +119,7 @@ public final class ScreenCapture: NSObject, SCStreamOutput, SCStreamDelegate, @u
 
         public var errorDescription: String? {
             switch self {
-            case .noDisplay: "The selected display isn't available."
+            case .noDisplay: String(localized: "The selected display isn't available.")
             }
         }
     }

@@ -72,7 +72,7 @@ final class AppModel {
         errorMessage = nil
         bridges = await BridgeDiscovery.discover()
         if bridges.isEmpty {
-            errorMessage = "No bridges found. Check that this Mac is on the same network, or enter the bridge's IP."
+            errorMessage = String(localized: "No bridges found. Check that this Mac is on the same network, or enter the bridge's IP.")
         }
     }
 
@@ -85,7 +85,7 @@ final class AppModel {
             bridges.removeAll { $0.id == bridge.id }
             bridges.append(bridge)
         } catch {
-            errorMessage = "No Hue Bridge at \(host): \(error.localizedDescription)"
+            errorMessage = String(localized: "No Hue Bridge at \(host): \(error.localizedDescription)")
         }
     }
 
@@ -229,7 +229,7 @@ final class AppModel {
     }
 
     private static let unreachableMessage =
-        "Can't reach the Hue Bridge. Check that it's on the same network, and that Blask Sync is allowed in System Settings → Privacy & Security → Local Network."
+        String(localized: "Can't reach the Hue Bridge. Check that it's on the same network, and that Blask Sync is allowed in System Settings → Privacy & Security → Local Network.")
 
     private func relocate(_ credentials: BridgeCredentials) async -> BridgeCredentials? {
         let found = await BridgeDiscovery.discover()

@@ -295,7 +295,7 @@ final class LightControl {
             }
             lightsOn = colorsByLight.values.contains { $0.contains { $0.color.hueState.brightness > 0 } }
         } catch {
-            errorMessage = "Couldn't turn the lights on: \(error.localizedDescription)"
+            errorMessage = String(localized: "Couldn't turn the lights on: \(error.localizedDescription)")
         }
     }
 
@@ -313,7 +313,9 @@ final class LightControl {
                 .setPower(on, lightIds: area.lightIds, applicationKey: credentials.applicationKey, transition: transition)
             lightsOn = on
         } catch {
-            errorMessage = "Couldn't turn the lights \(on ? "on" : "off"): \(error.localizedDescription)"
+            errorMessage = on
+                ? String(localized: "Couldn't turn the lights on: \(error.localizedDescription)")
+                : String(localized: "Couldn't turn the lights off: \(error.localizedDescription)")
         }
     }
 
@@ -548,7 +550,7 @@ final class LightControl {
             updateEngines()
         } catch {
             state = .stopped
-            errorMessage = "Couldn't start streaming: \(error.localizedDescription)"
+            errorMessage = String(localized: "Couldn't start streaming: \(error.localizedDescription)")
             updateEngines()
         }
     }
@@ -582,7 +584,7 @@ final class LightControl {
         updateActivity()
         state = .stopped
         updateEngines()
-        errorMessage = "Streaming stopped: \(error.localizedDescription)"
+        errorMessage = String(localized: "Streaming stopped: \(error.localizedDescription)")
         Task { await stream.stop() }
     }
 
@@ -714,15 +716,6 @@ final class LightControl {
             updateEngines()
         } else {
             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
-        }
-    }
-
-    /// macOS only applies a newly granted Screen Recording permission after a relaunch.
-    func relaunch() {
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, _ in
-            DispatchQueue.main.async { NSApplication.shared.terminate(nil) }
         }
     }
 
@@ -876,7 +869,7 @@ final class LightControl {
         guard capture != nil else { return }
         Task {
             await stopCapture()
-            captureState = .failed("Screen capture stopped: \(error.localizedDescription)")
+            captureState = .failed(String(localized: "Screen capture stopped: \(error.localizedDescription)"))
         }
     }
 }
