@@ -61,7 +61,7 @@ final class LightControl {
 
     // MARK: Screen sync state
 
-    /// What the lights follow while streaming. Manual while the Manual Control window is open.
+    /// What the lights follow while streaming.
     private(set) var mode: Mode = .screen {
         didSet {
             guard mode != oldValue else { return }
@@ -189,9 +189,6 @@ final class LightControl {
     /// True while the stream runs only so `identify` can light a channel: no screen or audio capture,
     /// and it stops again when identifying ends.
     private var streamingForIdentify = false
-
-    /// Whether screen sync was running when Manual Control opened, to resume it afterwards.
-    private var resumeScreenAfterManual = false
 
     private enum Keys {
         static let displayID = "sync.displayID"
@@ -391,10 +388,9 @@ final class LightControl {
         }
     }
 
-    /// Switches to manual colors, streaming if needed. Called when the Manual Control window opens.
+    /// Switches to manual colors, streaming if needed. Chosen in the menu, or by opening Manual Control.
     func beginManual() async {
         guard mode != .manual else { return }
-        resumeScreenAfterManual = (isStreaming || state == .starting) && !streamingForIdentify
         streamingForIdentify = false
         identifiedChannel = nil
         mode = .manual
@@ -426,13 +422,6 @@ final class LightControl {
         } else {
             await stop()
         }
-    }
-
-    /// Returns to screen sync if it was running before, else releases the lights.
-    func endManual() async {
-        guard mode == .manual else { return }
-        if !resumeScreenAfterManual { await stopSync() }
-        mode = syncSource.mode
     }
 
     func loadLights() async {
@@ -491,11 +480,13 @@ final class LightControl {
     func setColor(_ color: LightColor, channel: UInt8) {
         colors[channel] = color
         pushColors()
+        showManualColors()
     }
 
     func setAllColors(_ color: LightColor) {
         for channel in colors.keys { colors[channel] = color }
         pushColors()
+        showManualColors()
     }
 
     private var manualColorsKey: String { "manualColors.\(area.id)" }
@@ -518,6 +509,13 @@ final class LightControl {
     func setColors(_ updates: [UInt8: LightColor]) {
         colors.merge(updates) { _, new in new }
         pushColors()
+        showManualColors()
+    }
+
+    /// Picking a color in manual brings the lights back if they were switched off or released.
+    private func showManualColors() {
+        guard mode == .manual, state == .stopped else { return }
+        Task { await start() }
     }
 
     /// - Parameter fadeIn: If set, the lights rise from black over this long instead of jumping in.

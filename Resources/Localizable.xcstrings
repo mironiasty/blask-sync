@@ -1449,30 +1449,30 @@
         }
       }
     },
-    "Drag a pin on the wheel to recolor a light. With several lights selected, they turn together. Closing this window hands the lights back to sync if it was running, or releases them.": {
+    "Drag a pin on the wheel to recolor a light. With several lights selected, they turn together. The lights keep these colors after this window closes; switch back to screen or music sync from the menu bar.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ziehen Sie eine Markierung auf dem Farbrad, um ein Licht umzufärben. Sind mehrere Lichter ausgewählt, drehen sie sich gemeinsam. Beim Schließen dieses Fensters gehen die Lichter zurück an die Synchronisation, falls sie lief, oder werden freigegeben."
+            "value": "Ziehen Sie eine Markierung auf dem Farbrad, um ein Licht umzufärben. Sind mehrere Lichter ausgewählt, drehen sie sich gemeinsam. Die Lichter behalten diese Farben, wenn das Fenster geschlossen wird; zurück zur Bildschirm- oder Musiksynchronisation geht es über die Menüleiste."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Arrastra un marcador de la rueda para cambiar el color de una luz. Con varias luces seleccionadas, giran juntas. Al cerrar esta ventana, las luces vuelven a la sincronización si estaba activa, o se liberan."
+            "value": "Arrastra un marcador de la rueda para cambiar el color de una luz. Con varias luces seleccionadas, giran juntas. Las luces conservan estos colores al cerrar esta ventana; vuelve a la sincronización con la pantalla o la música desde la barra de menús."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Faites glisser un repère sur la roue pour changer la couleur d’une lumière. Si plusieurs lumières sont sélectionnées, elles tournent ensemble. Fermer cette fenêtre rend les lumières à la synchronisation si elle était active, ou les libère."
+            "value": "Faites glisser un repère sur la roue pour changer la couleur d’une lumière. Si plusieurs lumières sont sélectionnées, elles tournent ensemble. Les lumières gardent ces couleurs après la fermeture de cette fenêtre ; revenez à la synchronisation avec l’écran ou la musique depuis la barre des menus."
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Przeciągnij znacznik na kole, aby zmienić kolor światła. Gdy zaznaczonych jest kilka świateł, obracają się razem. Zamknięcie tego okna oddaje światła synchronizacji, jeśli była włączona, lub je zwalnia."
+            "value": "Przeciągnij znacznik na kole, aby zmienić kolor światła. Gdy zaznaczonych jest kilka świateł, obracają się razem. Po zamknięciu tego okna światła zachowują te kolory; do synchronizacji z ekranem lub muzyką wrócisz z paska menu."
           }
         }
       }
@@ -2373,6 +2373,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Monitor"
+          }
+        }
+      }
+    },
+    "More Controls…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weitere Steuerung …"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Más controles…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plus de commandes…"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Więcej ustawień…"
           }
         }
       }
@@ -3483,34 +3511,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ustawienia…"
-          }
-        }
-      }
-    },
-    "Show Manual Control": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Manuelle Steuerung anzeigen"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mostrar control manual"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Afficher le contrôle manuel"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pokaż sterowanie ręczne"
           }
         }
       }

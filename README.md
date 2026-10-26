@@ -119,10 +119,14 @@ certificate, install Apple's [WWDR G3 intermediate](https://www.apple.com/certif
     the monitor shows the live picture only while screen sync runs.
   - **Music:** palette, intensity and brightness, with live level/bass/mid/high meters, a beat indicator and
     the colors being sent.
+- **Manual in the menu bar.** Choosing Manual in the menu switches the lights to the manual colors (streaming
+  if needed) and shows a brightness slider for all lights and the scenes below; More Controls… opens the window.
+  The lights stay on manual colors until you pick Screen or Music or stop.
 - **Manual Control window.** A color wheel with a pin per light (drag a pin to recolor it; selected lights turn
   together), a lights panel (the strip as a segmented LED bar plus lamp bulbs) to choose what to edit, a
   brightness bar, and scenes (warm/neutral/cool whites, off, or a palette spread across the strip). Opening it
-  switches the lights to these colors and starts streaming if needed. The colors are remembered per area. Closing it returns to screen sync if that was running, otherwise it releases the lights.
+  switches the lights to these colors and starts streaming if needed; closing it leaves them there. The colors
+  are remembered per area.
 
 While Settings or Manual Control is open, Blask Sync shows in the Dock and ⌘-Tab (so a window that went
 behind others can be brought back); with them closed it's menu-bar-only again. The sync session belongs to
