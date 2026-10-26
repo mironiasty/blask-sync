@@ -91,14 +91,18 @@ public struct ScreenMapping: Codable, Equatable, Sendable {
 
     /// - Parameter lampChannels: Standalone lamps. When the area also has strip segments, their extent
     ///   marks where the screen is, and lamps outside it are placed beside the screen accordingly.
-    public static func defaults(for channels: [EntertainmentArea.Channel], lampChannels: Set<UInt8> = []) -> ScreenMapping {
+    public static func defaults(for channels: [EntertainmentArea.Channel], lampChannels: Set<UInt8> = [])
+        -> ScreenMapping
+    {
         let screen = screenExtent(of: channels.filter { !lampChannels.contains($0.id) })
-        return ScreenMapping(regions: Dictionary(uniqueKeysWithValues: channels.map { channel in
-            if lampChannels.contains(channel.id), let screen {
-                return (channel.id, lampRegion(for: channel.position, screen: screen))
-            }
-            return (channel.id, defaultRegion(for: channel.position))
-        }))
+        return ScreenMapping(
+            regions: Dictionary(
+                uniqueKeysWithValues: channels.map { channel in
+                    if lampChannels.contains(channel.id), let screen {
+                        return (channel.id, lampRegion(for: channel.position, screen: screen))
+                    }
+                    return (channel.id, defaultRegion(for: channel.position))
+                }))
     }
 
     /// The left/right and down/up extent of the channels around the screen (typically a strip on its back).
@@ -108,7 +112,8 @@ public struct ScreenMapping: Codable, Equatable, Sendable {
 
     static func screenExtent(of channels: [EntertainmentArea.Channel]) -> Extent? {
         guard let first = channels.first else { return nil }
-        var extent = Extent(minX: first.position.x, maxX: first.position.x, minZ: first.position.z, maxZ: first.position.z)
+        var extent = Extent(
+            minX: first.position.x, maxX: first.position.x, minZ: first.position.z, maxZ: first.position.z)
         for channel in channels.dropFirst() {
             extent = Extent(
                 minX: min(extent.minX, channel.position.x), maxX: max(extent.maxX, channel.position.x),
@@ -138,16 +143,18 @@ public struct ScreenMapping: Codable, Equatable, Sendable {
         guard extent > 0.01 else {
             return ScreenRegion(x: 0.5 - size, y: 0.5 - size, width: size * 2, height: size * 2)
         }
-        let u = (position.x / extent + 1) / 2 // 0 = left edge, 1 = right edge
-        let v = (1 - position.z / extent) / 2 // 0 = top edge, 1 = bottom edge
+        let u = (position.x / extent + 1) / 2  // 0 = left edge, 1 = right edge
+        let v = (1 - position.z / extent) / 2  // 0 = top edge, 1 = bottom edge
         return ScreenRegion(x: u - size / 2, y: v - size / 2, width: size, height: size).clamped()
     }
 
     /// Adds defaults for channels without a region and drops regions of channels that no longer exist,
     /// e.g. after the area was edited in the Hue app.
     public func reconciled(with channels: [EntertainmentArea.Channel]) -> ScreenMapping {
-        ScreenMapping(regions: Dictionary(uniqueKeysWithValues: channels.map { channel in
-            (channel.id, regions[channel.id] ?? Self.defaultRegion(for: channel.position))
-        }))
+        ScreenMapping(
+            regions: Dictionary(
+                uniqueKeysWithValues: channels.map { channel in
+                    (channel.id, regions[channel.id] ?? Self.defaultRegion(for: channel.position))
+                }))
     }
 }

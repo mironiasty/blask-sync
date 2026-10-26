@@ -1,9 +1,9 @@
 import AppKit
 import HueKit
 import Observation
-import os
 import SwiftUI
 import SyncCore
+import os
 
 /// Manual control and screen sync of one entertainment area, driven over the streaming API.
 @MainActor
@@ -140,7 +140,7 @@ final class LightControl {
         didSet {
             UserDefaults.standard.set(pauseForProtectedApps, forKey: Keys.pauseForProtectedApps)
             updateProtectedPause()
-            if capture != nil { Task { await restartCapture() } } // refresh the excluded apps
+            if capture != nil { Task { await restartCapture() } }  // refresh the excluded apps
         }
     }
     /// Name of the protected-video app capture is paused for, e.g. "TV".
@@ -268,7 +268,8 @@ final class LightControl {
 
     func refreshPower() async {
         guard !area.lightIds.isEmpty else { return }
-        lightsOn = try? await BridgeClient(credentials: credentials).anyLightOn(area.lightIds, applicationKey: credentials.applicationKey)
+        lightsOn = try? await BridgeClient(credentials: credentials).anyLightOn(
+            area.lightIds, applicationKey: credentials.applicationKey)
     }
 
     /// Switches the lights on showing the last manual colors, set directly on the lights (not streamed),
@@ -280,7 +281,11 @@ final class LightControl {
         for channel in area.channels {
             guard let color = colors[channel.id] else { continue }
             for member in channel.members {
-                guard let lightId = channelDescriptions[channel.id]?.lights.first(where: { $0.serviceId == member.serviceId })?.lightId else { continue }
+                guard
+                    let lightId = channelDescriptions[channel.id]?.lights.first(where: {
+                        $0.serviceId == member.serviceId
+                    })?.lightId
+                else { continue }
                 colorsByLight[lightId, default: []].append((member.index, color))
             }
         }
@@ -311,10 +316,12 @@ final class LightControl {
         }
         do {
             try await BridgeClient(credentials: credentials)
-                .setPower(on, lightIds: area.lightIds, applicationKey: credentials.applicationKey, transition: transition)
+                .setPower(
+                    on, lightIds: area.lightIds, applicationKey: credentials.applicationKey, transition: transition)
             lightsOn = on
         } catch {
-            errorMessage = on
+            errorMessage =
+                on
                 ? String(localized: "Couldn't turn the lights on: \(error.localizedDescription)")
                 : String(localized: "Couldn't turn the lights off: \(error.localizedDescription)")
         }
@@ -340,7 +347,8 @@ final class LightControl {
     /// the display sleeps, music sync keeps playing.
     func prepareForSleep(displayOnly: Bool) async {
         guard UserDefaults.standard.object(forKey: Self.turnOffWhenSleepingKey) as? Bool ?? true,
-              resumeAfterSleep == nil else { return }
+            resumeAfterSleep == nil
+        else { return }
         if displayOnly, isStreaming, mode == .music { return }
         if isStreaming, !streamingForIdentify {
             resumeAfterSleep = .streaming
@@ -364,7 +372,11 @@ final class LightControl {
             }
             switch resume {
             case .streaming:
-                if mode == .manual { await start(fadeIn: Self.wakeFade) } else { await startSync(fadeIn: Self.wakeFade) }
+                if mode == .manual {
+                    await start(fadeIn: Self.wakeFade)
+                } else {
+                    await startSync(fadeIn: Self.wakeFade)
+                }
                 if state != .stopped || captureState == .needsPermission { return }
             case .lightsOn:
                 await setPower(true, transition: Self.wakeFade)
@@ -429,9 +441,10 @@ final class LightControl {
         do {
             let lights = try await BridgeClient(credentials: credentials)
                 .entertainmentLights(applicationKey: credentials.applicationKey)
-            channelDescriptions = Dictionary(uniqueKeysWithValues: area.channels.map {
-                ($0.id, ChannelDescription(channel: $0, lights: lights))
-            })
+            channelDescriptions = Dictionary(
+                uniqueKeysWithValues: area.channels.map {
+                    ($0.id, ChannelDescription(channel: $0, lights: lights))
+                })
             // Never customized: now that lamps are known, place them beside the screen where they belong.
             if mappingStore.load(areaId: area.id) == nil {
                 resetMapping()
@@ -493,16 +506,19 @@ final class LightControl {
 
     /// Stored as channel → [red, green, blue], since LightColor isn't Codable.
     private func saveManualColors() {
-        let plist = Dictionary(uniqueKeysWithValues: colors.map { (String($0.key), [$0.value.red, $0.value.green, $0.value.blue]) })
+        let plist = Dictionary(
+            uniqueKeysWithValues: colors.map { (String($0.key), [$0.value.red, $0.value.green, $0.value.blue]) })
         UserDefaults.standard.set(plist, forKey: manualColorsKey)
     }
 
     private static func loadManualColors(areaId: String) -> [UInt8: LightColor] {
-        guard let plist = UserDefaults.standard.dictionary(forKey: "manualColors.\(areaId)") as? [String: [Double]] else { return [:] }
-        return Dictionary(uniqueKeysWithValues: plist.compactMap { key, rgb in
-            guard let channel = UInt8(key), rgb.count == 3 else { return nil }
-            return (channel, LightColor(red: rgb[0], green: rgb[1], blue: rgb[2]))
-        })
+        guard let plist = UserDefaults.standard.dictionary(forKey: "manualColors.\(areaId)") as? [String: [Double]]
+        else { return [:] }
+        return Dictionary(
+            uniqueKeysWithValues: plist.compactMap { key, rgb in
+                guard let channel = UInt8(key), rgb.count == 3 else { return nil }
+                return (channel, LightColor(red: rgb[0], green: rgb[1], blue: rgb[2]))
+            })
     }
 
     /// Sets several channels at once (one update to the lights).
@@ -546,7 +562,7 @@ final class LightControl {
             }
             self.stream = stream
             state = .streaming
-            lightsOn = true // the bridge powers lights up for streaming
+            lightsOn = true  // the bridge powers lights up for streaming
             routeOutput()
             updateActivity()
             updateEngines()
@@ -593,10 +609,11 @@ final class LightControl {
     private var outputColors: [UInt8: LightColor] {
         if let identifiedChannel {
             // The canvas colors, so lights and markers match; the identified one bright, the rest dim.
-            return Dictionary(uniqueKeysWithValues: colors.keys.map { channel in
-                let color = identifyColor(for: channel)
-                return (channel, channel == identifiedChannel ? color : color.scaled(by: Self.identifyDim))
-            })
+            return Dictionary(
+                uniqueKeysWithValues: colors.keys.map { channel in
+                    let color = identifyColor(for: channel)
+                    return (channel, channel == identifiedChannel ? color : color.scaled(by: Self.identifyDim))
+                })
         }
         // Manual colors carry their own brightness; the master brightness is for screen and music sync.
         return colors
@@ -625,7 +642,9 @@ final class LightControl {
 
     private func updateActivity() {
         // Debug switch to compare against App Nap: `defaults write local.blasksync.BlaskSync sync.allowAppNap -bool YES`
-        let needed = (stream != nil || capture != nil || audioTap != nil) && !UserDefaults.standard.bool(forKey: "sync.allowAppNap")
+        let needed =
+            (stream != nil || capture != nil || audioTap != nil)
+            && !UserDefaults.standard.bool(forKey: "sync.allowAppNap")
         if needed, activity == nil {
             activity = ProcessInfo.processInfo.beginActivity(
                 options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
@@ -658,7 +677,8 @@ final class LightControl {
     }
 
     private var musicEngineSettings: MusicSyncEngine.Settings {
-        MusicSyncEngine.Settings(palette: musicPalette, intensity: musicIntensity, style: musicStyle, brightness: brightness)
+        MusicSyncEngine.Settings(
+            palette: musicPalette, intensity: musicIntensity, style: musicStyle, brightness: brightness)
     }
 
     private func updateMusicEngine() {
@@ -672,7 +692,9 @@ final class LightControl {
         let stripChannels = strips.isEmpty ? area.channels.map(\.id) : strips.flatMap(\.channels)
         let lampChannels = area.channels.map(\.id).filter { !stripChannels.contains($0) }
         let preview = Throttle(interval: 0.1)
-        let engine = MusicSyncEngine(settings: musicEngineSettings, stripChannels: stripChannels, lampChannels: lampChannels) {
+        let engine = MusicSyncEngine(
+            settings: musicEngineSettings, stripChannels: stripChannels, lampChannels: lampChannels
+        ) {
             [musicSink, weak self] colors, features, beat in
             musicSink.withLock { $0 }?.setColors(colors)
             if beat {
@@ -717,7 +739,8 @@ final class LightControl {
             captureState = .idle
             updateEngines()
         } else {
-            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+            NSWorkspace.shared.open(
+                URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
         }
     }
 
@@ -804,7 +827,10 @@ final class LightControl {
                     try await capture.start(displayID: selectedDisplayID, excludedBundleIDs: excludedBundleIDs)
                 } catch {
                     if captureInterrupted, ScreenCapture.hasPermission, self.capture === capture {
-                        captureState = .failed(String(localized: "Screen capture was interrupted (\(error.localizedDescription)). Reconnecting…"))
+                        captureState = .failed(
+                            String(
+                                localized:
+                                    "Screen capture was interrupted (\(error.localizedDescription)). Reconnecting…"))
                         try? await Task.sleep(for: Self.captureRetryInterval)
                         continue
                     }
@@ -841,7 +867,8 @@ final class LightControl {
     }
 
     private func updateProtectedPause() {
-        let protectedInFront = pauseForProtectedApps && frontmostApp.bundleID.map(Self.protectedBundleIDs.contains) == true
+        let protectedInFront =
+            pauseForProtectedApps && frontmostApp.bundleID.map(Self.protectedBundleIDs.contains) == true
         let paused = protectedInFront ? (frontmostApp.name ?? "Apple TV") : nil
         guard paused != pausedForApp else { return }
         pausedForApp = paused
@@ -900,8 +927,12 @@ struct DisplayInfo: Identifiable, Hashable {
 
     static func all() -> [DisplayInfo] {
         NSScreen.screens.compactMap { screen in
-            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return nil }
-            return DisplayInfo(id: number.uint32Value, name: screen.localizedName, aspectRatio: screen.frame.width / screen.frame.height)
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
+                return nil
+            }
+            return DisplayInfo(
+                id: number.uint32Value, name: screen.localizedName,
+                aspectRatio: screen.frame.width / screen.frame.height)
         }
     }
 }
@@ -936,7 +967,8 @@ extension Frame {
             bitsPerPixel: 32,
             bytesPerRow: bytesPerRow,
             space: CGColorSpace(name: CGColorSpace.sRGB)!,
-            bitmapInfo: CGBitmapInfo(rawValue: CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.noneSkipFirst.rawValue),
+            bitmapInfo: CGBitmapInfo(
+                rawValue: CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.noneSkipFirst.rawValue),
             provider: provider,
             decode: nil,
             shouldInterpolate: true,

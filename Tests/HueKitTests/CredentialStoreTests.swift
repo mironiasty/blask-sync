@@ -1,12 +1,15 @@
 import Foundation
 import Testing
+
 @testable import HueKit
 
 struct CredentialStoreTests {
-    let store = CredentialStore(fileURL: FileManager.default.temporaryDirectory
-        .appending(path: "CredentialStoreTests-\(UUID().uuidString)/BlaskSync/bridge.json"))
-    let credentials = BridgeCredentials(bridgeId: "ABC123", host: "192.168.1.2", name: "Hue Bridge",
-                                        applicationKey: "key", clientKey: "0123456789ABCDEF0123456789ABCDEF")
+    let store = CredentialStore(
+        fileURL: FileManager.default.temporaryDirectory
+            .appending(path: "CredentialStoreTests-\(UUID().uuidString)/BlaskSync/bridge.json"))
+    let credentials = BridgeCredentials(
+        bridgeId: "ABC123", host: "192.168.1.2", name: "Hue Bridge",
+        applicationKey: "key", clientKey: "0123456789ABCDEF0123456789ABCDEF")
 
     @Test func roundTrip() throws {
         #expect(try store.load() == nil)

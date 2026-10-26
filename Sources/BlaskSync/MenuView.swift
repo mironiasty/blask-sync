@@ -63,7 +63,11 @@ struct MenuView: View {
         }
         .padding()
         .frame(width: 300)
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+        .onGeometryChange(for: CGFloat.self) {
+            $0.size.height
+        } action: {
+            contentHeight = $0
+        }
         .background(MenuPanelSizer(contentHeight: contentHeight))
         .onAppear {
             // Safety net: if loading failed earlier, opening the menu tries again.

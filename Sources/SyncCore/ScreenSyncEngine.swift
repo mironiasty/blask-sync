@@ -15,7 +15,9 @@ public final class ScreenSyncEngine: @unchecked Sendable {
         public var brightness: Double
         public var adjustment: ColorAdjustment
 
-        public init(mapping: ScreenMapping, intensity: SyncIntensity, brightness: Double, adjustment: ColorAdjustment = .none) {
+        public init(
+            mapping: ScreenMapping, intensity: SyncIntensity, brightness: Double, adjustment: ColorAdjustment = .none
+        ) {
             self.mapping = mapping
             self.intensity = intensity
             self.brightness = brightness

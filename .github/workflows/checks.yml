@@ -1,0 +1,37 @@
+# Formatting, a warning-free build, unit tests and translations, checked on every pull request.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    # Same Xcode as the release workflow: 26.6's compiler crashes on ManualControlView.
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v5
+
+      # Fix locally with: swift format -i -r -p Sources Tests scripts Package.swift
+      - name: Formatting and lint
+        run: swift format lint --strict -r -p Sources Tests scripts Package.swift
+
+      # The later steps run even when an earlier one fails, so one push reports every problem.
+      - name: Build without warnings
+        if: ${{ !cancelled() }}
+        run: swift build -Xswiftc -warnings-as-errors
+
+      - name: Unit tests
+        if: ${{ !cancelled() }}
+        run: swift test
+
+      - name: Translations
+        if: ${{ !cancelled() }}
+        run: scripts/check-strings.sh

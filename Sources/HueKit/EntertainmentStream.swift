@@ -11,11 +11,11 @@ public enum HueStreamMessage {
     public static func encode(areaId: String, colors: [UInt8: LightColor]) -> Data {
         var data = Data(capacity: headerSize + 7 * colors.count)
         data.append(contentsOf: Array("HueStream".utf8))
-        data.append(contentsOf: [0x02, 0x00]) // API version 2.0
-        data.append(0x00)                     // sequence number (ignored by the bridge)
-        data.append(contentsOf: [0x00, 0x00]) // reserved
-        data.append(0x00)                     // color space: RGB
-        data.append(0x00)                     // reserved
+        data.append(contentsOf: [0x02, 0x00])  // API version 2.0
+        data.append(0x00)  // sequence number (ignored by the bridge)
+        data.append(contentsOf: [0x00, 0x00])  // reserved
+        data.append(0x00)  // color space: RGB
+        data.append(0x00)  // reserved
         data.append(contentsOf: Array(areaId.utf8))
 
         for (channel, color) in colors.sorted(by: { $0.key < $1.key }).prefix(maxChannels) {
@@ -113,7 +113,12 @@ public final class EntertainmentStream: @unchecked Sendable {
             let resumed = OSAllocatedUnfairLock(initialState: false)
             /// Returns false if the continuation was already resumed.
             @Sendable func resume(_ result: Result<Void, Error>) -> Bool {
-                guard resumed.withLock({ done in defer { done = true }; return !done }) else { return false }
+                guard
+                    resumed.withLock({ done in
+                        defer { done = true }
+                        return !done
+                    })
+                else { return false }
                 continuation.resume(with: result)
                 return true
             }

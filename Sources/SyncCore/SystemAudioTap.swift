@@ -60,22 +60,26 @@ public final class SystemAudioTap: @unchecked Sendable {
                 kAudioAggregateDeviceIsStackedKey: false,
                 kAudioAggregateDeviceTapAutoStartKey: true,
                 kAudioAggregateDeviceSubDeviceListKey: [[kAudioSubDeviceUIDKey: outputUID]],
-                kAudioAggregateDeviceTapListKey: [[
-                    kAudioSubTapDriftCompensationKey: true,
-                    kAudioSubTapUIDKey: description.uuid.uuidString,
-                ]],
+                kAudioAggregateDeviceTapListKey: [
+                    [
+                        kAudioSubTapDriftCompensationKey: true,
+                        kAudioSubTapUIDKey: description.uuid.uuidString,
+                    ]
+                ],
             ]
             var device = AudioObjectID(kAudioObjectUnknown)
-            try check(AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &device), "create the capture device")
+            try check(
+                AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &device), "create the capture device")
             aggregateID = device
 
             let channels = Int(format.mChannelsPerFrame)
             let interleaved = format.mFormatFlags & kAudioFormatFlagIsNonInterleaved == 0
             let sampleRate = format.mSampleRate
             var proc: AudioDeviceIOProcID?
-            try check(AudioDeviceCreateIOProcIDWithBlock(&proc, device, queue) { [weak self] _, input, _, _, _ in
-                self?.handle(input, channels: channels, interleaved: interleaved, sampleRate: sampleRate)
-            }, "attach to the capture device")
+            try check(
+                AudioDeviceCreateIOProcIDWithBlock(&proc, device, queue) { [weak self] _, input, _, _, _ in
+                    self?.handle(input, channels: channels, interleaved: interleaved, sampleRate: sampleRate)
+                }, "attach to the capture device")
             procID = proc
             try check(AudioDeviceStart(device, proc), "start capturing")
             Self.logger.notice("audio tap started: \(sampleRate, privacy: .public) Hz, \(channels) channels")
@@ -108,7 +112,8 @@ public final class SystemAudioTap: @unchecked Sendable {
         let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input))
         guard channels > 0, let first = buffers.first, let firstData = first.mData else { return }
 
-        let frames = interleaved
+        let frames =
+            interleaved
             ? Int(first.mDataByteSize) / (MemoryLayout<Float>.size * channels)
             : Int(first.mDataByteSize) / MemoryLayout<Float>.size
         guard frames > 0 else { return }
@@ -143,8 +148,11 @@ public final class SystemAudioTap: @unchecked Sendable {
         guard status == noErr else { throw TapError(step: step, status: status) }
     }
 
-    private static func property<T>(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector, as type: T.Type) throws -> T {
-        var address = AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+    private static func property<T>(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector, as type: T.Type)
+        throws -> T
+    {
+        var address = AudioObjectPropertyAddress(
+            mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         var size = UInt32(MemoryLayout<T>.size)
         let value = UnsafeMutablePointer<T>.allocate(capacity: 1)
         defer { value.deallocate() }
@@ -154,8 +162,12 @@ public final class SystemAudioTap: @unchecked Sendable {
     }
 
     private static func defaultOutputDeviceUID() throws -> String {
-        let device = try property(AudioObjectID(kAudioObjectSystemObject), kAudioHardwarePropertyDefaultSystemOutputDevice, as: AudioObjectID.self)
-        var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyDeviceUID, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        let device = try property(
+            AudioObjectID(kAudioObjectSystemObject), kAudioHardwarePropertyDefaultSystemOutputDevice,
+            as: AudioObjectID.self)
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyDeviceUID, mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
         var uid: Unmanaged<CFString>?
         var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
         let status = AudioObjectGetPropertyData(device, &address, 0, nil, &size, &uid)

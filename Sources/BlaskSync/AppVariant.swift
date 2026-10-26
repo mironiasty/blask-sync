@@ -5,6 +5,7 @@ import Foundation
 enum AppVariant {
     static let isDevelopment = Bundle.main.bundleIdentifier.map { $0.hasSuffix(".dev") } ?? true
 
-    static let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+    static let name =
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
         ?? (isDevelopment ? "Blask Sync Dev" : "Blask Sync")
 }

@@ -52,7 +52,9 @@ private struct ManualControlPanel: View {
                 // Switched away from the menu bar while this window was open.
                 HStack {
                     Image(systemName: "info.circle.fill").foregroundStyle(.blue)
-                    Text(control.mode == .screen ? "The lights are following the screen." : "The lights are following the music.")
+                    Text(
+                        control.mode == .screen
+                            ? "The lights are following the screen." : "The lights are following the music.")
                     Spacer()
                     Button("Take Over") { Task { await control.beginManual() } }
                         .buttonStyle(.borderedProminent)
@@ -105,7 +107,9 @@ struct SyncStatusLabel: View {
     }
 
     private var text: String {
-        if control.identifiedChannel != nil, control.state == .streaming { return String(localized: "Identifying lights") }
+        if control.identifiedChannel != nil, control.state == .streaming {
+            return String(localized: "Identifying lights")
+        }
         return switch control.state {
         case .streaming where control.mode == .screen && control.pausedForApp != nil:
             String(localized: "Paused while \(control.pausedForApp ?? "") is in front")
@@ -130,14 +134,18 @@ struct SyncButton: View {
     var body: some View {
         switch control.state {
         case .stopped:
-            Button { Task { await control.startSync() } } label: {
+            Button {
+                Task { await control.startSync() }
+            } label: {
                 Label("Start Sync", systemImage: "play.fill")
                     .frame(maxWidth: large ? .infinity : nil)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(large ? .large : .regular)
         case .streaming:
-            Button { Task { await control.stopSync() } } label: {
+            Button {
+                Task { await control.stopSync() }
+            } label: {
                 Label("Stop Sync", systemImage: "stop.fill")
                     .frame(maxWidth: large ? .infinity : nil)
             }
@@ -176,10 +184,12 @@ private struct ManualColorStudio: View {
             VStack(alignment: .leading, spacing: 20) {
                 LightsPanel(control: control, selection: $selection)
                 ScenesPanel(control: control)
-                Text("Drag a pin on the wheel to recolor a light. With several lights selected, they turn together. The lights keep these colors after this window closes; switch back to screen or music sync from the menu bar.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                Text(
+                    "Drag a pin on the wheel to recolor a light. With several lights selected, they turn together. The lights keep these colors after this window closes; switch back to screen or music sync from the menu bar."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
             .frame(width: 300)
@@ -221,7 +231,9 @@ private struct ColorWheel: View {
                         Pin(
                             color: color,
                             label: pinLabel(channel),
-                            symbol: control.isLamp(channel) ? LightSymbol.name(for: control.channelDescriptions[channel]?.lights.first?.archetype) : nil,
+                            symbol: control.isLamp(channel)
+                                ? LightSymbol.name(for: control.channelDescriptions[channel]?.lights.first?.archetype)
+                                : nil,
                             isSelected: selection.contains(channel),
                             isEdited: edited.contains(channel)
                         )
@@ -237,8 +249,17 @@ private struct ColorWheel: View {
 
     private var wheel: some View {
         Circle()
-            .fill(AngularGradient(colors: stride(from: 0.0, through: 1.0, by: 1.0 / 12).map { Color(hue: $0, saturation: 1, brightness: 1) }, center: .center))
-            .overlay(Circle().fill(RadialGradient(colors: [.white, .white.opacity(0)], center: .center, startRadius: 0, endRadius: 190)))
+            .fill(
+                AngularGradient(
+                    colors: stride(from: 0.0, through: 1.0, by: 1.0 / 12).map {
+                        Color(hue: $0, saturation: 1, brightness: 1)
+                    }, center: .center)
+            )
+            .overlay(
+                Circle().fill(
+                    RadialGradient(
+                        colors: [.white, .white.opacity(0)], center: .center, startRadius: 0, endRadius: 190))
+            )
             .overlay(Circle().strokeBorder(.white.opacity(0.4), lineWidth: 1))
             .shadow(color: .black.opacity(0.25), radius: 10, y: 4)
     }
@@ -249,7 +270,9 @@ private struct ColorWheel: View {
     }
 
     private func pinLabel(_ channel: UInt8) -> String? {
-        guard let description = control.channelDescriptions[channel], case .stripSegment(let index, _) = description.kind else { return nil }
+        guard let description = control.channelDescriptions[channel],
+            case .stripSegment(let index, _) = description.kind
+        else { return nil }
         return "\(index + 1)"
     }
 
@@ -279,13 +302,18 @@ private struct ColorWheel: View {
 
     /// Recolors `channels`. With a drag start, each light keeps its hue offset from the dragged pin
     /// and its saturation scales with the drag; otherwise all take exactly this hue and saturation.
-    private func apply(hue: Double, saturation: Double, to channels: Set<UInt8>, keepingOffsetsFrom start: (colors: [UInt8: LightColor], hue: Double, saturation: Double)?) {
+    private func apply(
+        hue: Double, saturation: Double, to channels: Set<UInt8>,
+        keepingOffsetsFrom start: (colors: [UInt8: LightColor], hue: Double, saturation: Double)?
+    ) {
         var updates: [UInt8: LightColor] = [:]
         for channel in channels {
             let original = (start?.colors[channel] ?? control.colors[channel] ?? .white).hsb
             let brightness = original.brightness > 0.01 ? original.brightness : 1
             if let start {
-                let newHue = (original.hue + hue - start.hue).truncatingRemainder(dividingBy: 1) + (original.hue + hue - start.hue < 0 ? 1 : 0)
+                let newHue =
+                    (original.hue + hue - start.hue).truncatingRemainder(dividingBy: 1)
+                    + (original.hue + hue - start.hue < 0 ? 1 : 0)
                 let ratio = start.saturation > 0.01 ? saturation / start.saturation : 1
                 let newSaturation = start.saturation > 0.01 ? min(1, original.saturation * ratio) : saturation
                 updates[channel] = LightColor(hue: newHue, saturation: newSaturation, brightness: brightness)
@@ -299,7 +327,8 @@ private struct ColorWheel: View {
     /// Angle around the wheel is hue (0 at 3 o'clock, clockwise, matching the gradient); distance from
     /// the center is saturation.
     static func hueSaturation(at location: CGPoint, center: CGPoint, radius: CGFloat) -> (Double, Double) {
-        let dx = location.x - center.x, dy = location.y - center.y
+        let dx = location.x - center.x
+        let dy = location.y - center.y
         var angle = atan2(dy, dx)
         if angle < 0 { angle += 2 * .pi }
         return (angle / (2 * .pi), min(1, hypot(dx, dy) / radius))
@@ -401,7 +430,9 @@ private struct LightsPanel: View {
 
             ForEach(control.strips, id: \.light) { strip in
                 VStack(alignment: .leading, spacing: 6) {
-                    Button { selection = Set(strip.channels) } label: {
+                    Button {
+                        selection = Set(strip.channels)
+                    } label: {
                         Label(strip.light.name, systemImage: "light.strip.2")
                             .font(.callout)
                     }
@@ -414,7 +445,9 @@ private struct LightsPanel: View {
                                 .frame(height: 22)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 4)
-                                        .strokeBorder(isHighlighted(channel) ? Color.accentColor : .secondary.opacity(0.3), lineWidth: isHighlighted(channel) ? 2.5 : 1)
+                                        .strokeBorder(
+                                            isHighlighted(channel) ? Color.accentColor : .secondary.opacity(0.3),
+                                            lineWidth: isHighlighted(channel) ? 2.5 : 1)
                                 )
                                 .contentShape(Rectangle())
                                 .onTapGesture { select(channel) }
@@ -436,10 +469,15 @@ private struct LightsPanel: View {
                                     .fill((control.colors[channel] ?? .black).color)
                                     .shadow(color: (control.colors[channel] ?? .black).color.opacity(0.8), radius: 8)
                                 Image(systemName: LightSymbol.name(for: description?.lights.first?.archetype))
-                                    .foregroundStyle((control.colors[channel] ?? .black).prefersDarkText ? .black.opacity(0.7) : .white)
+                                    .foregroundStyle(
+                                        (control.colors[channel] ?? .black).prefersDarkText
+                                            ? .black.opacity(0.7) : .white)
                             }
                             .frame(width: 40, height: 40)
-                            .overlay(Circle().strokeBorder(isHighlighted(channel) ? Color.accentColor : .clear, lineWidth: 2.5).padding(-4))
+                            .overlay(
+                                Circle().strokeBorder(
+                                    isHighlighted(channel) ? Color.accentColor : .clear, lineWidth: 2.5
+                                ).padding(-4))
                             Text(description?.name.nilIfEmpty ?? String(localized: "Channel \(channel)"))
                                 .font(.caption)
                                 .lineLimit(1)
@@ -491,7 +529,9 @@ struct ScenesPanel: View {
                 ForEach(MusicPalette.allCases, id: \.self) { palette in
                     SceneChip(
                         name: palette.title,
-                        fill: AnyShapeStyle(LinearGradient(colors: palette.colors.map(\.color), startPoint: .leading, endPoint: .trailing))
+                        fill: AnyShapeStyle(
+                            LinearGradient(
+                                colors: palette.colors.map(\.color), startPoint: .leading, endPoint: .trailing))
                     ) {
                         control.setColors(sceneColors(palette))
                     }
@@ -543,7 +583,8 @@ private struct SceneChip: View {
 extension LightColor {
     /// Hue, saturation and brightness, each 0...1.
     var hsb: (hue: Double, saturation: Double, brightness: Double) {
-        let maximum = max(red, green, blue), minimum = min(red, green, blue)
+        let maximum = max(red, green, blue)
+        let minimum = min(red, green, blue)
         let delta = maximum - minimum
         var hue = 0.0
         if delta > 0 {

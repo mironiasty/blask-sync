@@ -32,10 +32,12 @@ struct ScreenMappingView: View {
                     Spacer()
                     Button("Reset Layout", action: control.resetMapping)
                 }
-                Text("Drag a light to move it; hover to see the screen area it follows, select it to resize that area. Lamps beside the screen follow the nearest edge, softened toward the overall screen color the further away they are.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                Text(
+                    "Drag a light to move it; hover to see the screen area it follows, select it to resize that area. Lamps beside the screen follow the nearest edge, softened toward the overall screen color the further away they are."
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity)
 
@@ -158,10 +160,12 @@ private struct MappingCanvas: View {
 
     private func wall(_ geometry: CanvasGeometry) -> some View {
         RoundedRectangle(cornerRadius: 12)
-            .fill(RadialGradient(
-                colors: [Color(white: 0.16), Color(white: 0.07)],
-                center: .center, startRadius: 0, endRadius: max(geometry.size.width, geometry.size.height) * 0.7
-            ))
+            .fill(
+                RadialGradient(
+                    colors: [Color(white: 0.16), Color(white: 0.07)],
+                    center: .center, startRadius: 0, endRadius: max(geometry.size.width, geometry.size.height) * 0.7
+                )
+            )
             .frame(width: geometry.size.width, height: geometry.size.height)
     }
 
@@ -173,7 +177,11 @@ private struct MappingCanvas: View {
                     let diameter = geometry.size.width * (control.isLamp(channel.id) ? 0.42 : 0.2)
                     let center = geometry.point(x: region.centerX, y: region.centerY)
                     Circle()
-                        .fill(RadialGradient(colors: [color(for: channel.id).opacity(0.55), .clear], center: .center, startRadius: 0, endRadius: diameter / 2))
+                        .fill(
+                            RadialGradient(
+                                colors: [color(for: channel.id).opacity(0.55), .clear], center: .center, startRadius: 0,
+                                endRadius: diameter / 2)
+                        )
                         .frame(width: diameter, height: diameter)
                         .offset(x: center.x - diameter / 2, y: center.y - diameter / 2)
                 }
@@ -186,12 +194,19 @@ private struct MappingCanvas: View {
     private func monitor(_ geometry: CanvasGeometry) -> some View {
         let screen = geometry.screen
         let bezel = screen.insetBy(dx: -screen.width * 0.015, dy: -screen.width * 0.015)
-        let neck = CGRect(x: screen.midX - screen.width * 0.035, y: bezel.maxY, width: screen.width * 0.07, height: geometry.unit.height * 0.13)
-        let foot = CGRect(x: screen.midX - screen.width * 0.13, y: neck.maxY - 2, width: screen.width * 0.26, height: geometry.unit.height * 0.035)
+        let neck = CGRect(
+            x: screen.midX - screen.width * 0.035, y: bezel.maxY, width: screen.width * 0.07,
+            height: geometry.unit.height * 0.13)
+        let foot = CGRect(
+            x: screen.midX - screen.width * 0.13, y: neck.maxY - 2, width: screen.width * 0.26,
+            height: geometry.unit.height * 0.035)
         return ZStack(alignment: .topLeading) {
             ForEach([neck, foot], id: \.minY) { part in
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(LinearGradient(colors: [Color(white: 0.32), Color(white: 0.16)], startPoint: .top, endPoint: .bottom))
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(white: 0.32), Color(white: 0.16)], startPoint: .top, endPoint: .bottom)
+                    )
                     .frame(width: part.width, height: part.height)
                     .offset(x: part.minX, y: part.minY)
             }
@@ -205,12 +220,19 @@ private struct MappingCanvas: View {
                 if let preview = control.preview {
                     Image(decorative: preview, scale: 1).resizable()
                 } else {
-                    LinearGradient(colors: [Color(white: 0.13), Color(white: 0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        .overlay(
-                            Label(control.pausedForApp == nil ? "Live preview while screen sync runs" : "Paused while \(control.pausedForApp!) is in front", systemImage: "display")
-                                .font(.caption)
-                                .foregroundStyle(Color(white: 0.45))
+                    LinearGradient(
+                        colors: [Color(white: 0.13), Color(white: 0.05)], startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .overlay(
+                        Label(
+                            control.pausedForApp == nil
+                                ? "Live preview while screen sync runs"
+                                : "Paused while \(control.pausedForApp!) is in front", systemImage: "display"
                         )
+                        .font(.caption)
+                        .foregroundStyle(Color(white: 0.45))
+                    )
                 }
             }
             .frame(width: screen.width, height: screen.height)
@@ -256,7 +278,12 @@ private struct MappingCanvas: View {
                         path.addLine(to: to)
                     }
                     .stroke(
-                        LinearGradient(colors: [color(for: channel.id).opacity(active ? 0.9 : 0.35), color(for: channel.id).opacity(0.1)], startPoint: UnitPoint(x: from.x / geometry.size.width, y: from.y / geometry.size.height), endPoint: UnitPoint(x: to.x / geometry.size.width, y: to.y / geometry.size.height)),
+                        LinearGradient(
+                            colors: [
+                                color(for: channel.id).opacity(active ? 0.9 : 0.35),
+                                color(for: channel.id).opacity(0.1),
+                            ], startPoint: UnitPoint(x: from.x / geometry.size.width, y: from.y / geometry.size.height),
+                            endPoint: UnitPoint(x: to.x / geometry.size.width, y: to.y / geometry.size.height)),
                         style: StrokeStyle(lineWidth: active ? 6 : 1.5, lineCap: .round, dash: active ? [] : [2, 4])
                     )
                     .blur(radius: active ? 2 : 0)
@@ -284,7 +311,8 @@ private struct MappingCanvas: View {
                         path.move(to: a.1)
                         path.addLine(to: b.1)
                     }
-                    segment.stroke(gradient, style: StrokeStyle(lineWidth: 9, lineCap: .round)).blur(radius: 5).opacity(0.8)
+                    segment.stroke(gradient, style: StrokeStyle(lineWidth: 9, lineCap: .round)).blur(radius: 5).opacity(
+                        0.8)
                     segment.stroke(gradient, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
                 }
             }
@@ -402,7 +430,9 @@ private struct SampleArea: View {
         let rect = geometry.rect(region.sampledRegion)
         RoundedRectangle(cornerRadius: 6)
             .fill(color.opacity(0.18))
-            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(color, style: StrokeStyle(lineWidth: 2, dash: [6, 4])))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6).strokeBorder(color, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+            )
             .shadow(color: color.opacity(0.6), radius: 8)
             .overlay(alignment: .bottomTrailing) {
                 if isSelected {
@@ -458,10 +488,12 @@ private struct Inspector: View {
                             }
                         }
                         Toggle("Pause for Apple TV app", isOn: $control.pauseForProtectedApps)
-                        Text("macOS hides protected movies while the screen is captured. With this on, capture pauses while the Apple TV app is in front and the lights glow softly.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        Text(
+                            "macOS hides protected movies while the screen is captured. With this on, capture pauses while the Apple TV app is in front and the lights glow softly."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(4)
                 }
@@ -537,7 +569,9 @@ private struct SelectedChannelDetails: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Toggle("Identify while moving", isOn: $identifying)
-                    .help("When you move or select a light, the real lights take the colors shown on the canvas, with that light bright and the others dim. If sync is off, the lights are taken over just for this, without capturing the screen.")
+                    .help(
+                        "When you move or select a light, the real lights take the colors shown on the canvas, with that light bright and the others dim. If sync is off, the lights are taken over just for this, without capturing the screen."
+                    )
             }
         } else {
             Text("Select a channel on the canvas or in the list.")
@@ -547,7 +581,9 @@ private struct SelectedChannelDetails: View {
     }
 
     private func title(_ channelId: UInt8) -> String {
-        guard let description = control.channelDescriptions[channelId] else { return String(localized: "Channel \(channelId)") }
+        guard let description = control.channelDescriptions[channelId] else {
+            return String(localized: "Channel \(channelId)")
+        }
         if case .stripSegment(let index, _) = description.kind {
             return String(localized: "Segment \(index + 1) · \(description.strip?.name ?? "")")
         }
@@ -565,10 +601,16 @@ private struct SelectedChannelDetails: View {
             return String(localized: "Gradient strip segment. Follows the screen area under it.")
         }
         guard region.distanceFromScreen > 0 else {
-            return String(localized: "Lamp on the screen. Follows the area under it. Drag it onto the wall if it stands beside the screen.")
+            return String(
+                localized:
+                    "Lamp on the screen. Follows the area under it. Drag it onto the wall if it stands beside the screen."
+            )
         }
         let blend = Int((region.ambientBlend * 100).rounded())
-        return String(localized: "Lamp beside the screen. Follows the nearest screen area (outlined), mixed with \(blend)% of the overall screen color.")
+        return String(
+            localized:
+                "Lamp beside the screen. Follows the nearest screen area (outlined), mixed with \(blend)% of the overall screen color."
+        )
     }
 }
 

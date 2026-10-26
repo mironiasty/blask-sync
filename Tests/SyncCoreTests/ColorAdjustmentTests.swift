@@ -1,6 +1,7 @@
 import Foundation
 import HueKit
 import Testing
+
 @testable import SyncCore
 
 struct ColorAdjustmentTests {
@@ -34,6 +35,7 @@ struct ColorAdjustmentTests {
         #expect(isClose(adjustment.apply(.black), LightColor(red: 0.2, green: 0.2, blue: 0.2)))
         #expect(isClose(adjustment.apply(.white), .white))
         // Hue is kept: pure red at half brightness → 0.2 + 0.5 × 0.8 = 0.6.
-        #expect(isClose(adjustment.apply(LightColor(red: 0.5, green: 0, blue: 0)), LightColor(red: 0.6, green: 0, blue: 0)))
+        #expect(
+            isClose(adjustment.apply(LightColor(red: 0.5, green: 0, blue: 0)), LightColor(red: 0.6, green: 0, blue: 0)))
     }
 }

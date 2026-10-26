@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import HueKit
 
 struct HueStreamMessageTests {
@@ -14,10 +15,12 @@ struct HueStreamMessageTests {
     }
 
     @Test func channelsAreSortedBigEndianAndClamped() {
-        let message = HueStreamMessage.encode(areaId: areaId, colors: [
-            1: LightColor(red: 0.5, green: -1, blue: 2),
-            0: .white,
-        ])
+        let message = HueStreamMessage.encode(
+            areaId: areaId,
+            colors: [
+                1: LightColor(red: 0.5, green: -1, blue: 2),
+                0: .white,
+            ])
         #expect(message.count == 52 + 2 * 7)
         #expect(Array(message[52..<59]) == [0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
         #expect(Array(message[59..<66]) == [1, 0x80, 0x00, 0x00, 0x00, 0xFF, 0xFF])
@@ -35,7 +38,8 @@ struct HueStreamMessageTests {
     }
 
     @Test func rejectsMalformedClientKey() {
-        let credentials = BridgeCredentials(bridgeId: "x", host: "1.2.3.4", name: nil, applicationKey: "k", clientKey: "1234")
+        let credentials = BridgeCredentials(
+            bridgeId: "x", host: "1.2.3.4", name: nil, applicationKey: "k", clientKey: "1234")
         #expect(throws: HueError.invalidClientKey) {
             try EntertainmentStream.dtlsParameters(for: credentials)
         }

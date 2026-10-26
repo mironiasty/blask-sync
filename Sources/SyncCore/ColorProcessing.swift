@@ -40,13 +40,17 @@ public enum ColorExtractor {
     }
 
     /// Average color of an on-screen region. Always covers at least one pixel.
-    private static func average(_ bytes: UnsafeBufferPointer<UInt8>, _ frame: Frame, _ region: ScreenRegion) -> LightColor {
+    private static func average(_ bytes: UnsafeBufferPointer<UInt8>, _ frame: Frame, _ region: ScreenRegion)
+        -> LightColor
+    {
         let x0 = min(max(Int(region.x * Double(frame.width)), 0), frame.width - 1)
         let y0 = min(max(Int(region.y * Double(frame.height)), 0), frame.height - 1)
         let x1 = max(x0 + 1, min(Int((region.x + region.width) * Double(frame.width)), frame.width))
         let y1 = max(y0 + 1, min(Int((region.y + region.height) * Double(frame.height)), frame.height))
 
-        var blue = 0, green = 0, red = 0
+        var blue = 0
+        var green = 0
+        var red = 0
         for y in y0..<y1 {
             var offset = y * frame.bytesPerRow + x0 * 4
             for _ in x0..<x1 {
@@ -90,7 +94,9 @@ public struct ColorSmoother: Sendable {
 
     public init() {}
 
-    public mutating func update(toward target: [UInt8: LightColor], timeConstant: TimeInterval, now: TimeInterval) -> [UInt8: LightColor] {
+    public mutating func update(toward target: [UInt8: LightColor], timeConstant: TimeInterval, now: TimeInterval)
+        -> [UInt8: LightColor]
+    {
         let elapsed = lastUpdate.map { max(0, now - $0) } ?? .infinity
         lastUpdate = now
         let alpha = timeConstant > 0 ? 1 - exp(-elapsed / (timeConstant / 2)) : 1
@@ -133,7 +139,9 @@ public struct ColorAdjustment: Equatable, Codable, Sendable {
 
     /// Boosts saturation keeping hue and brightness, then lifts brightness to the floor.
     public func apply(_ color: LightColor) -> LightColor {
-        var red = color.red, green = color.green, blue = color.blue
+        var red = color.red
+        var green = color.green
+        var blue = color.blue
         let value = max(red, green, blue)
         let minimum = min(red, green, blue)
 
