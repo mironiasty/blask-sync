@@ -3201,30 +3201,30 @@
         }
       }
     },
-    "Screen capture stopped: %@": {
+    "Screen capture was interrupted (%@). Reconnecting…": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bildschirmaufnahme gestoppt: %@"
+            "value": "Die Bildschirmaufnahme wurde unterbrochen (%@). Verbindung wird wiederhergestellt …"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "La captura de pantalla se detuvo: %@"
+            "value": "La captura de pantalla se interrumpió (%@). Reconectando…"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "La capture de l’écran s’est arrêtée : %@"
+            "value": "La capture de l’écran a été interrompue (%@). Reconnexion…"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Przechwytywanie ekranu zatrzymane: %@"
+            "value": "Przechwytywanie ekranu zostało przerwane (%@). Ponowne łączenie…"
           }
         }
       }
