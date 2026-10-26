@@ -313,6 +313,8 @@
   footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; }
   footer a { color: var(--muted); }
   footer .fine { flex-basis: 100%; font-size: 13px; }
+  footer .author { display: inline-flex; align-items: center; gap: 8px; }
+  footer .author img { width: 24px; height: 24px; border-radius: 50%; background: var(--bg-raised); }
 
   @media (max-width: 900px) {
     .modes-grid, .features { grid-template-columns: 1fr; }
@@ -572,6 +574,7 @@
 <footer>
   <div class="wrap">
     <span>Blask Sync · <em>blask</em> is Polish for gleam</span>
+    <span class="author"><img src="author.svg" alt="" width="24" height="24">Made by <a href="https://miron.asia">Miron Pawlik</a></span>
     <span><a href="https://github.com/mironiasty/blask-sync">Source on GitHub</a> · <a href="https://github.com/mironiasty/blask-sync/blob/main/LICENSE">MIT License</a></span>
     <p class="fine">Blask Sync is an independent project, not affiliated with or endorsed by Signify or Philips Hue. Philips Hue and Hue Sync are trademarks of Signify Holding.</p>
   </div>

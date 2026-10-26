@@ -33,6 +33,7 @@ ditto "$BIN_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/BlaskSync"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp "$ICON" "$APP/Contents/Resources/AppIcon.icns"
+cp Resources/Author.svg "$APP/Contents/Resources/Author.svg"
 # Translations: each String Catalog becomes <language>.lproj/*.strings(dict) next to the icon.
 for CATALOG in Resources/*.xcstrings; do
     xcrun xcstringstool compile "$CATALOG" --output-directory "$APP/Contents/Resources"

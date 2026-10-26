@@ -1,14 +1,15 @@
 import HueKit
 import SwiftUI
 
-/// The Settings window (⌘,): bridge and area in General, screen mapping in Screen, music sync in Music.
+/// The Settings window (⌘,): bridge and area in General, screen mapping in Screen, music sync in Music,
+/// credits in About.
 struct SettingsView: View {
     let model: AppModel
     let updater: SoftwareUpdater
     @AppStorage("settingsTab") private var selection = Tab.general
 
     enum Tab: String {
-        case general, screen, music
+        case general, screen, music, about
     }
 
     var body: some View {
@@ -24,6 +25,9 @@ struct SettingsView: View {
             MusicSettings(model: model)
                 .tabItem { Label("Music", systemImage: "hifispeaker.fill") }
                 .tag(Tab.music)
+            AboutSettings(updater: updater)
+                .tabItem { Label("About", systemImage: "info.circle") }
+                .tag(Tab.about)
         }
     }
 }
