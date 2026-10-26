@@ -10,8 +10,9 @@ public struct IntervalStats: Sendable {
         public let gapsOver50ms: Int
 
         public var description: String {
-            String(format: "%d events in %.1f s (%.1f/s), max gap %.0f ms, %d gaps > 50 ms",
-                   count, duration, Double(count) / duration, maxGap * 1000, gapsOver50ms)
+            String(
+                format: "%d events in %.1f s (%.1f/s), max gap %.0f ms, %d gaps > 50 ms",
+                count, duration, Double(count) / duration, maxGap * 1000, gapsOver50ms)
         }
     }
 

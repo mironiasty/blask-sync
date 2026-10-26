@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import SyncCore
 
 struct AudioAnalyzerTests {
@@ -37,7 +38,8 @@ struct AudioAnalyzerTests {
     @Test func lowToneIsBass() {
         let analyzer = AudioAnalyzer(sampleRate: sampleRate)
         // Prime the peaks with broadband content so the bands are comparable.
-        _ = analyzer.process(zip(sine(60, seconds: 1), zip(sine(600, seconds: 1), sine(5000, seconds: 1))).map { $0 + $1.0 + $1.1 })
+        _ = analyzer.process(
+            zip(sine(60, seconds: 1), zip(sine(600, seconds: 1), sine(5000, seconds: 1))).map { $0 + $1.0 + $1.1 })
         let result = settled(analyzer.process(sine(60, seconds: 1)))
         #expect(result.bass > 0.8)
         #expect(result.high < 0.3)
@@ -45,7 +47,8 @@ struct AudioAnalyzerTests {
 
     @Test func highToneIsHigh() {
         let analyzer = AudioAnalyzer(sampleRate: sampleRate)
-        _ = analyzer.process(zip(sine(60, seconds: 1), zip(sine(600, seconds: 1), sine(5000, seconds: 1))).map { $0 + $1.0 + $1.1 })
+        _ = analyzer.process(
+            zip(sine(60, seconds: 1), zip(sine(600, seconds: 1), sine(5000, seconds: 1))).map { $0 + $1.0 + $1.1 })
         let result = settled(analyzer.process(sine(5000, seconds: 1)))
         #expect(result.high > 0.8)
         #expect(result.bass < 0.3)

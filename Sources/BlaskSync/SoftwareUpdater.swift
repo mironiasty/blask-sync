@@ -18,7 +18,8 @@ final class SoftwareUpdater: NSObject, SPUStandardUserDriverDelegate {
     @ObservationIgnored private var canCheckObservation: NSKeyValueObservation?
 
     var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? String(localized: "development", comment: "Version shown for builds without one")
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+            ?? String(localized: "development", comment: "Version shown for builds without one")
     }
 
     var automaticallyChecks: Bool {
@@ -37,9 +38,11 @@ final class SoftwareUpdater: NSObject, SPUStandardUserDriverDelegate {
         super.init()
         // Development builds drop the feed from Info.plist; `swift run` has no Info.plist at all.
         guard Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil else { return }
-        let controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: self)
+        let controller = SPUStandardUpdaterController(
+            startingUpdater: true, updaterDelegate: nil, userDriverDelegate: self)
         self.controller = controller
-        canCheckObservation = controller.updater.observe(\.canCheckForUpdates, options: [.initial, .new]) { [weak self] updater, _ in
+        canCheckObservation = controller.updater.observe(\.canCheckForUpdates, options: [.initial, .new]) {
+            [weak self] updater, _ in
             MainActor.assumeIsolated { self?.canCheckForUpdates = updater.canCheckForUpdates }
         }
     }
@@ -55,7 +58,9 @@ final class SoftwareUpdater: NSObject, SPUStandardUserDriverDelegate {
     /// without stealing focus mid-task, and bring them forward when it does.
     nonisolated var supportsGentleScheduledUpdateReminders: Bool { true }
 
-    nonisolated func standardUserDriverWillHandleShowingUpdate(_ handleShowingUpdate: Bool, forUpdate update: SUAppcastItem, state: SPUUserUpdateState) {
+    nonisolated func standardUserDriverWillHandleShowingUpdate(
+        _ handleShowingUpdate: Bool, forUpdate update: SUAppcastItem, state: SPUUserUpdateState
+    ) {
         guard handleShowingUpdate else { return }
         MainActor.assumeIsolated { NSApp.activate() }
     }

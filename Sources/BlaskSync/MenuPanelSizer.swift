@@ -26,14 +26,18 @@ struct MenuPanelSizer: NSViewRepresentable {
             if let observer { NotificationCenter.default.removeObserver(observer) }
             observer = nil
             guard let window else { return }
-            observer = NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self] _ in
+            observer = NotificationCenter.default.addObserver(
+                forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main
+            ) { [weak self] _ in
                 MainActor.assumeIsolated { self?.fit() }
             }
         }
 
         func fit() {
             guard let window, contentHeight > 0, abs(window.frame.height - contentHeight) > 0.5 else { return }
-            Self.logger.notice("Panel was \(window.frame.height, privacy: .public) pt tall for \(self.contentHeight, privacy: .public) pt of content; resizing")
+            Self.logger.notice(
+                "Panel was \(window.frame.height, privacy: .public) pt tall for \(self.contentHeight, privacy: .public) pt of content; resizing"
+            )
             var frame = window.frame
             frame.origin.y += frame.height - contentHeight
             frame.size.height = contentHeight

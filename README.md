@@ -40,6 +40,20 @@ self-updating (so a release never replaces them). They keep their own settings a
 bridge pairing in `~/Library/Application Support/BlaskSync/bridge.json`. `VARIANT=release scripts/bundle.sh`
 builds the published app, `build/BlaskSync.app`, as the release workflow does.
 
+### Checks
+
+Every pull request runs `.github/workflows/checks.yml`: `swift format` lint (style in `.swift-format`), a build
+with warnings as errors, the unit tests, and `scripts/check-strings.sh` (String Catalogs in sync with the code and
+fully translated). To run them locally:
+
+```sh
+swift format -i -r -p Sources Tests scripts Package.swift   # format in place
+swift format lint --strict -r -p Sources Tests scripts Package.swift
+swift build -Xswiftc -warnings-as-errors
+swift test
+scripts/check-strings.sh
+```
+
 ### Translations
 
 The app is translated into Polish, German, Spanish and French and follows the language set in System Settings →

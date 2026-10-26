@@ -21,7 +21,8 @@ public enum MusicPalette: String, CaseIterable, Codable, Sendable {
         let wrapped = position - floor(position / Double(colors.count)) * Double(colors.count)
         let index = Int(wrapped)
         let fraction = wrapped - Double(index)
-        let a = colors[index % colors.count], b = colors[(index + 1) % colors.count]
+        let a = colors[index % colors.count]
+        let b = colors[(index + 1) % colors.count]
         return LightColor(
             red: a.red + (b.red - a.red) * fraction,
             green: a.green + (b.green - a.green) * fraction,
@@ -30,7 +31,9 @@ public enum MusicPalette: String, CaseIterable, Codable, Sendable {
     }
 
     private static func color(_ hex: UInt32) -> LightColor {
-        LightColor(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
+        LightColor(
+            red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255,
+            blue: Double(hex & 0xFF) / 255)
     }
 }
 
@@ -150,7 +153,9 @@ public struct MusicVisualizer: Sendable {
     /// - Parameters:
     ///   - features: The latest audio features.
     ///   - beat: Strength of the strongest beat since the last update, if any.
-    public mutating func update(features: AudioFeatures, beat: Double?, settings: Settings, now: TimeInterval) -> [UInt8: LightColor] {
+    public mutating func update(features: AudioFeatures, beat: Double?, settings: Settings, now: TimeInterval)
+        -> [UInt8: LightColor]
+    {
         let dt = lastUpdate.map { max(0, now - $0) } ?? 0
         lastUpdate = now
         switch settings.style {
@@ -161,7 +166,9 @@ public struct MusicVisualizer: Sendable {
 
     // MARK: Flow
 
-    private mutating func flow(features: AudioFeatures, beat: Double?, settings: Settings, dt: TimeInterval, now: TimeInterval) -> [UInt8: LightColor] {
+    private mutating func flow(
+        features: AudioFeatures, beat: Double?, settings: Settings, dt: TimeInterval, now: TimeInterval
+    ) -> [UInt8: LightColor] {
         let dynamics = FlowDynamics(settings.intensity)
         energy = smooth(energy, toward: features.loudness, dt: dt, attack: dynamics.attack, release: dynamics.release)
         slowEnergy = smooth(slowEnergy, toward: features.loudness, dt: dt, attack: 0.6, release: 1.8)
@@ -208,7 +215,9 @@ public struct MusicVisualizer: Sendable {
 
     // MARK: Pulse
 
-    private mutating func pulse(features: AudioFeatures, beat: Double?, settings: Settings, dt: TimeInterval) -> [UInt8: LightColor] {
+    private mutating func pulse(features: AudioFeatures, beat: Double?, settings: Settings, dt: TimeInterval) -> [UInt8:
+        LightColor]
+    {
         let dynamics = Dynamics(settings.intensity)
         if let beat {
             targetPosition += 1
@@ -225,7 +234,8 @@ public struct MusicVisualizer: Sendable {
         for (index, channel) in stripChannels.enumerated() {
             let drive = min(1, 0.55 * level + 0.15 * features.high + pulse)
             let brightness = dynamics.floor + (1 - dynamics.floor) * drive
-            colors[channel] = settings.palette.color(at: position + Double(index) / segmentCount * 1.5).scaled(by: brightness)
+            colors[channel] = settings.palette.color(at: position + Double(index) / segmentCount * 1.5).scaled(
+                by: brightness)
         }
         for (index, channel) in lampChannels.enumerated() {
             let drive = min(1, 0.4 * level + 0.4 * bass + 1.2 * pulse)
@@ -238,7 +248,9 @@ public struct MusicVisualizer: Sendable {
     // MARK: Helpers
 
     /// Follows `target` with separate rise and fall time constants.
-    private func smooth(_ value: Double, toward target: Double, dt: TimeInterval, attack: TimeInterval, release: TimeInterval) -> Double {
+    private func smooth(
+        _ value: Double, toward target: Double, dt: TimeInterval, attack: TimeInterval, release: TimeInterval
+    ) -> Double {
         value + (target - value) * ease(dt, target > value ? attack : release)
     }
 

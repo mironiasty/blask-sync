@@ -1,6 +1,7 @@
 import Foundation
 import ScreenCaptureKit
 import Testing
+
 @testable import SyncCore
 
 struct FrameDiagnosticsTests {

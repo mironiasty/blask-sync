@@ -20,7 +20,9 @@ func makeContext() -> CGContext {
 func color(_ hex: UInt32, _ alpha: CGFloat = 1) -> CGColor {
     CGColor(
         colorSpace: colorSpace,
-        components: [CGFloat((hex >> 16) & 0xFF) / 255, CGFloat((hex >> 8) & 0xFF) / 255, CGFloat(hex & 0xFF) / 255, alpha]
+        components: [
+            CGFloat((hex >> 16) & 0xFF) / 255, CGFloat((hex >> 8) & 0xFF) / 255, CGFloat(hex & 0xFF) / 255, alpha,
+        ]
     )!
 }
 
@@ -34,12 +36,12 @@ func roundedRect(_ rect: CGRect, _ radius: CGFloat) -> CGPath {
 
 /// Spectrum the halo cycles through, as (position 0...1, color).
 let spectrum: [(CGFloat, UInt32)] = [
-    (0.00, 0xFF2D95), // magenta
-    (0.18, 0xFF7A1A), // orange
-    (0.32, 0xFFD23F), // amber
-    (0.50, 0x18E0C0), // aqua
-    (0.68, 0x2F7BFF), // blue
-    (0.84, 0x8B5CF6), // violet
+    (0.00, 0xFF2D95),  // magenta
+    (0.18, 0xFF7A1A),  // orange
+    (0.32, 0xFFD23F),  // amber
+    (0.50, 0x18E0C0),  // aqua
+    (0.68, 0x2F7BFF),  // blue
+    (0.84, 0x8B5CF6),  // violet
     (1.00, 0xFF2D95),
 ]
 
@@ -82,7 +84,8 @@ func drawConic(_ ctx: CGContext, center: CGPoint, clip: CGPath, startAngle: CGFl
 func blurred(_ image: CGImage, radius: CGFloat) -> CGImage {
     let input = CIImage(cgImage: image).clampedToExtent()
     let output = input.applyingGaussianBlur(sigma: radius).cropped(to: CGRect(x: 0, y: 0, width: size, height: size))
-    return CIContext(options: [.workingColorSpace: colorSpace]).createCGImage(output, from: output.extent, format: .RGBA8, colorSpace: colorSpace)!
+    return CIContext(options: [.workingColorSpace: colorSpace]).createCGImage(
+        output, from: output.extent, format: .RGBA8, colorSpace: colorSpace)!
 }
 
 /// A four-pointed sparkle with concave sides.
@@ -95,10 +98,12 @@ func sparklePath(center: CGPoint, radius: CGFloat, waist: CGFloat = 0.16) -> CGP
     path.move(to: points[0])
     for i in 0..<4 {
         let next = points[(i + 1) % 4]
-        path.addQuadCurve(to: next, control: CGPoint(
-            x: center.x + (points[i].x + next.x - 2 * center.x) * waist,
-            y: center.y + (points[i].y + next.y - 2 * center.y) * waist
-        ))
+        path.addQuadCurve(
+            to: next,
+            control: CGPoint(
+                x: center.x + (points[i].x + next.x - 2 * center.x) * waist,
+                y: center.y + (points[i].y + next.y - 2 * center.y) * waist
+            ))
     }
     path.closeSubpath()
     return path
@@ -143,7 +148,9 @@ func drawBodyRim(_ ctx: CGContext) {
 /// The ambilight: a spectrum ring around `screen`, blurred so it spills onto the wall.
 func drawHalo(_ ctx: CGContext, screen: CGRect, spread: CGFloat, blur: CGFloat, intensity: CGFloat) {
     let layer = makeContext()
-    drawConic(layer, center: CGPoint(x: screen.midX, y: screen.midY), clip: roundedRect(screen.insetBy(dx: -spread, dy: -spread), 80), startAngle: .pi * 0.9)
+    drawConic(
+        layer, center: CGPoint(x: screen.midX, y: screen.midY),
+        clip: roundedRect(screen.insetBy(dx: -spread, dy: -spread), 80), startAngle: .pi * 0.9)
     let glow = blurred(layer.makeImage()!, radius: blur)
 
     ctx.saveGState()
@@ -154,7 +161,9 @@ func drawHalo(_ ctx: CGContext, screen: CGRect, spread: CGFloat, blur: CGFloat, 
     ctx.draw(glow, in: CGRect(x: 0, y: 0, width: size, height: size))
     // A second, tighter pass keeps the colors saturated right at the screen edge.
     let tight = makeContext()
-    drawConic(tight, center: CGPoint(x: screen.midX, y: screen.midY), clip: roundedRect(screen.insetBy(dx: -spread * 0.45, dy: -spread * 0.45), 50), startAngle: .pi * 0.9)
+    drawConic(
+        tight, center: CGPoint(x: screen.midX, y: screen.midY),
+        clip: roundedRect(screen.insetBy(dx: -spread * 0.45, dy: -spread * 0.45), 50), startAngle: .pi * 0.9)
     ctx.draw(blurred(tight.makeImage()!, radius: blur * 0.4), in: CGRect(x: 0, y: 0, width: size, height: size))
     ctx.restoreGState()
 }
@@ -190,7 +199,8 @@ func drawMonitor(_ ctx: CGContext, screen: CGRect) {
     ctx.setFillColor(color(0x0B0D18))
     ctx.fill(screen)
     let content = makeContext()
-    drawConic(content, center: CGPoint(x: screen.midX, y: screen.midY), clip: roundedRect(screen, 22), startAngle: .pi * 0.9)
+    drawConic(
+        content, center: CGPoint(x: screen.midX, y: screen.midY), clip: roundedRect(screen, 22), startAngle: .pi * 0.9)
     ctx.setAlpha(0.42)
     ctx.draw(blurred(content.makeImage()!, radius: 50), in: CGRect(x: 0, y: 0, width: size, height: size))
     ctx.setAlpha(1)
@@ -241,11 +251,13 @@ func drawDevBadge(_ ctx: CGContext) {
     ctx.fillPath()
     ctx.restoreGState()
 
-    let text = NSAttributedString(string: "DEV", attributes: [
-        .font: NSFont.systemFont(ofSize: 104, weight: .heavy),
-        .foregroundColor: NSColor.white,
-        .kern: 6,
-    ])
+    let text = NSAttributedString(
+        string: "DEV",
+        attributes: [
+            .font: NSFont.systemFont(ofSize: 104, weight: .heavy),
+            .foregroundColor: NSColor.white,
+            .kern: 6,
+        ])
     let line = CTLineCreateWithAttributedString(text)
     let bounds = CTLineGetImageBounds(line, ctx)
     ctx.textPosition = CGPoint(x: badge.midX - bounds.midX, y: badge.midY - bounds.midY)
@@ -261,7 +273,10 @@ func render(_ variant: String) -> CGImage {
     case "sparkle":
         let center = CGPoint(x: 512, y: 512)
         let ring = makeContext()
-        drawConic(ring, center: center, clip: CGPath(ellipseIn: CGRect(x: 512 - 300, y: 512 - 300, width: 600, height: 600), transform: nil), startAngle: .pi * 0.9)
+        drawConic(
+            ring, center: center,
+            clip: CGPath(ellipseIn: CGRect(x: 512 - 300, y: 512 - 300, width: 600, height: 600), transform: nil),
+            startAngle: .pi * 0.9)
         ctx.saveGState()
         ctx.addPath(bodyPath)
         ctx.clip()
@@ -274,7 +289,7 @@ func render(_ variant: String) -> CGImage {
         let screen = CGRect(x: 512 - 270, y: 560 - 168, width: 540, height: 336)
         drawHalo(ctx, screen: screen, spread: 95, blur: 55, intensity: 1)
         drawMonitor(ctx, screen: screen)
-    default: // halo-sparkle, dev
+    default:  // halo-sparkle, dev
         let screen = CGRect(x: 512 - 270, y: 560 - 168, width: 540, height: 336)
         drawHalo(ctx, screen: screen, spread: 95, blur: 55, intensity: 1)
         drawMonitor(ctx, screen: screen)
@@ -291,7 +306,8 @@ guard arguments.count >= 2 else {
     exit(1)
 }
 let image = render(arguments.count > 2 ? arguments[2] : "halo-sparkle")
-let destination = CGImageDestinationCreateWithURL(URL(fileURLWithPath: arguments[1]) as CFURL, "public.png" as CFString, 1, nil)!
+let destination = CGImageDestinationCreateWithURL(
+    URL(fileURLWithPath: arguments[1]) as CFURL, "public.png" as CFString, 1, nil)!
 CGImageDestinationAddImage(destination, image, nil)
 CGImageDestinationFinalize(destination)
 print("wrote \(arguments[1])")

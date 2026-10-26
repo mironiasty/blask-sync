@@ -11,7 +11,8 @@ public final class BridgeClient: Sendable {
         self.host = host
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 5
-        session = URLSession(configuration: config, delegate: BridgeTrustDelegate(expectedBridgeId: bridgeId), delegateQueue: nil)
+        session = URLSession(
+            configuration: config, delegate: BridgeTrustDelegate(expectedBridgeId: bridgeId), delegateQueue: nil)
     }
 
     public convenience init(credentials: BridgeCredentials) {
@@ -62,8 +63,14 @@ public final class BridgeClient: Sendable {
 
     static func parsePairingResponse(_ data: Data) throws -> PairingResult {
         struct Item: Decodable {
-            struct Success: Decodable { let username: String; let clientkey: String? }
-            struct Failure: Decodable { let type: Int; let description: String }
+            struct Success: Decodable {
+                let username: String
+                let clientkey: String?
+            }
+            struct Failure: Decodable {
+                let type: Int
+                let description: String
+            }
             let success: Success?
             let error: Failure?
         }
@@ -105,7 +112,10 @@ public final class BridgeClient: Sendable {
     /// Every light that can render entertainment streams, keyed by its `entertainment` service ID.
     /// Combines three resources: `entertainment` (segments), `device` (name) and `light` (archetype).
     public func entertainmentLights(applicationKey: String) async throws -> [String: EntertainmentLight] {
-        struct Reference: Decodable { let rid: String; let rtype: String }
+        struct Reference: Decodable {
+            let rid: String
+            let rtype: String
+        }
         struct Service: Decodable {
             struct Segments: Decodable {
                 struct Segment: Decodable {}
@@ -117,7 +127,10 @@ public final class BridgeClient: Sendable {
             let segments: Segments?
         }
         struct Device: Decodable {
-            struct Metadata: Decodable { let name: String; let archetype: String? }
+            struct Metadata: Decodable {
+                let name: String
+                let archetype: String?
+            }
             let id: String
             let metadata: Metadata
             let services: [Reference]
@@ -133,7 +146,8 @@ public final class BridgeClient: Sendable {
 
         let devicesById = Dictionary(try await devices.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         // The light's archetype is what the user picked in the Hue app; the device's is the product default.
-        let lightArchetypes = Dictionary(try await lights.map { ($0.id, $0.metadata.archetype) }, uniquingKeysWith: { a, _ in a })
+        let lightArchetypes = Dictionary(
+            try await lights.map { ($0.id, $0.metadata.archetype) }, uniquingKeysWith: { a, _ in a })
 
         var result: [String: EntertainmentLight] = [:]
         for service in try await services where service.renderer {
@@ -152,14 +166,17 @@ public final class BridgeClient: Sendable {
 
     /// Switches lights on or off through the regular API (they stay that way, unlike streamed colors).
     /// - Parameter transition: How long the lights take to fade to the new state; the bridge's default if nil.
-    public func setPower(_ on: Bool, lightIds: [String], applicationKey: String, transition: Duration? = nil) async throws {
+    public func setPower(_ on: Bool, lightIds: [String], applicationKey: String, transition: Duration? = nil)
+        async throws
+    {
         var state: [String: Any] = ["on": ["on": on]]
         if let transition { state["dynamics"] = ["duration": Int(transition / .milliseconds(1))] }
         let body = try JSONSerialization.data(withJSONObject: state)
         try await withThrowingTaskGroup(of: Void.self) { group in
             for id in lightIds {
                 group.addTask {
-                    _ = try await self.send("PUT", "/clip/v2/resource/light/\(id)", body: body, applicationKey: applicationKey)
+                    _ = try await self.send(
+                        "PUT", "/clip/v2/resource/light/\(id)", body: body, applicationKey: applicationKey)
                 }
             }
             try await group.waitForAll()
@@ -209,7 +226,9 @@ public final class BridgeClient: Sendable {
     /// The bridge only accepts the DTLS connection after a successful start.
     public func setStreaming(areaId: String, active: Bool, applicationKey: String) async throws {
         let body = try JSONSerialization.data(withJSONObject: ["action": active ? "start" : "stop"])
-        let data = try await send("PUT", "/clip/v2/resource/entertainment_configuration/\(areaId)", body: body, applicationKey: applicationKey)
+        let data = try await send(
+            "PUT", "/clip/v2/resource/entertainment_configuration/\(areaId)", body: body, applicationKey: applicationKey
+        )
         let envelope = try JSONDecoder().decode(ResourceEnvelope<ResourceIdentifier>.self, from: data)
         if let first = envelope.errors.first {
             throw HueError.bridge(type: 0, description: first.description)
@@ -240,7 +259,9 @@ public final class BridgeClient: Sendable {
         URL(string: host.contains(":") ? "https://[\(host)]" : "https://\(host)")!
     }
 
-    private func send(_ method: String, _ path: String, body: Data? = nil, applicationKey: String? = nil) async throws -> Data {
+    private func send(_ method: String, _ path: String, body: Data? = nil, applicationKey: String? = nil) async throws
+        -> Data
+    {
         var request = URLRequest(url: baseURL.appending(path: path))
         request.httpMethod = method
         request.httpBody = body
@@ -255,7 +276,8 @@ public final class BridgeClient: Sendable {
         default:
             // CLIP v2 explains failures (e.g. "area already streaming") in the body.
             if let envelope = try? JSONDecoder().decode(ResourceEnvelope<ResourceIdentifier>.self, from: data),
-               let first = envelope.errors.first {
+                let first = envelope.errors.first
+            {
                 throw HueError.bridge(type: http.statusCode, description: first.description)
             }
             throw HueError.http(status: http.statusCode)
@@ -278,7 +300,7 @@ private final class BridgeTrustDelegate: NSObject, URLSessionDelegate, Sendable 
         didReceive challenge: URLAuthenticationChallenge
     ) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
         guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-              let trust = challenge.protectionSpace.serverTrust
+            let trust = challenge.protectionSpace.serverTrust
         else { return (.performDefaultHandling, nil) }
 
         if let expectedBridgeId {

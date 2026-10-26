@@ -5,10 +5,10 @@ let package = Package(
     name: "BlaskSync",
     platforms: [.macOS("14.2")],
     products: [
-        .executable(name: "BlaskSync", targets: ["BlaskSync"]),
+        .executable(name: "BlaskSync", targets: ["BlaskSync"])
     ],
     dependencies: [
-        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.10.0"),
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.10.0")
     ],
     targets: [
         // Bridge discovery, pairing and the CLIP v2 API. No UI code.

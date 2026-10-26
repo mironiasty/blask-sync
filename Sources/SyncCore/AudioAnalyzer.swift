@@ -14,7 +14,10 @@ public struct AudioFeatures: Sendable, Equatable {
     /// How pronounced the beat is, 0...1; 0 when `isBeat` is false.
     public var beatStrength: Double
 
-    public init(loudness: Double = 0, bass: Double = 0, mid: Double = 0, high: Double = 0, isBeat: Bool = false, beatStrength: Double = 0) {
+    public init(
+        loudness: Double = 0, bass: Double = 0, mid: Double = 0, high: Double = 0, isBeat: Bool = false,
+        beatStrength: Double = 0
+    ) {
         self.loudness = loudness
         self.bass = bass
         self.mid = mid
@@ -62,8 +65,10 @@ public final class AudioAnalyzer {
         precondition(frameSize.nonzeroBitCount == 1, "frameSize must be a power of two")
         self.sampleRate = sampleRate
         self.frameSize = frameSize
-        fft = vDSP.FFT(log2n: vDSP_Length(frameSize.trailingZeroBitCount), radix: .radix2, ofType: DSPSplitComplex.self)!
-        window = vDSP.window(ofType: Float.self, usingSequence: .hanningDenormalized, count: frameSize, isHalfWindow: false)
+        fft = vDSP.FFT(
+            log2n: vDSP_Length(frameSize.trailingZeroBitCount), radix: .radix2, ofType: DSPSplitComplex.self)!
+        window = vDSP.window(
+            ofType: Float.self, usingSequence: .hanningDenormalized, count: frameSize, isHalfWindow: false)
     }
 
     /// Appends samples and returns features for every complete hop.

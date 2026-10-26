@@ -1,6 +1,7 @@
 import Foundation
 import HueKit
 import Testing
+
 @testable import SyncCore
 
 struct PulseStyleTests {
@@ -17,7 +18,9 @@ struct PulseStyleTests {
         start: TimeInterval = 0
     ) -> [[UInt8: LightColor]] {
         (0..<Int(seconds * 50)).map { tick in
-            visualizer.update(features: features, beat: beatsAt.contains(tick) ? 1 : nil, settings: settings, now: start + Double(tick) / 50)
+            visualizer.update(
+                features: features, beat: beatsAt.contains(tick) ? 1 : nil, settings: settings,
+                now: start + Double(tick) / 50)
         }
     }
 
@@ -103,7 +106,9 @@ struct FlowStyleTests {
         for (previous, next) in zip(frames, frames.dropFirst()) {
             for (channel, color) in next {
                 guard let before = previous[channel] else { continue }
-                largestStep = max(largestStep, abs(color.red - before.red), abs(color.green - before.green), abs(color.blue - before.blue))
+                largestStep = max(
+                    largestStep, abs(color.red - before.red), abs(color.green - before.green),
+                    abs(color.blue - before.blue))
             }
         }
         // Measured: Pulse jumps by up to ~0.78 in one tick on a beat; Flow stays around 0.04.
@@ -113,7 +118,8 @@ struct FlowStyleTests {
     @Test func colorsFlowAlongTheStrip() {
         var visualizer = MusicVisualizer(stripChannels: Array(0...6), lampChannels: [])
         let frames = run(&visualizer, seconds: 4) { _ in AudioFeatures(loudness: 0.7) }
-        let first = frames[50], last = frames.last!
+        let first = frames[50]
+        let last = frames.last!
         // Segments show different colors (a gradient)…
         #expect(Set((0...6).map { "\(first[UInt8($0)]!)" }).count == 7)
         // …and the gradient moves over time.

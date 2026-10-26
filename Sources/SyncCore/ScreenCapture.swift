@@ -2,8 +2,8 @@ import CoreGraphics
 import CoreMedia
 import CoreVideo
 import Foundation
-import os
 @preconcurrency import ScreenCaptureKit
+import os
 
 /// Streams small, downscaled frames of one display via ScreenCaptureKit.
 public final class ScreenCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
@@ -39,7 +39,8 @@ public final class ScreenCapture: NSObject, SCStreamOutput, SCStreamDelegate, @u
         await stop()
 
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-        guard let display = content.displays.first(where: { $0.displayID == displayID }) ?? content.displays.first else {
+        guard let display = content.displays.first(where: { $0.displayID == displayID }) ?? content.displays.first
+        else {
             throw CaptureError.noDisplay
         }
         let excludedApps = content.applications.filter {
@@ -49,7 +50,8 @@ public final class ScreenCapture: NSObject, SCStreamOutput, SCStreamDelegate, @u
 
         let configuration = SCStreamConfiguration()
         configuration.width = Self.frameWidth
-        configuration.height = max(1, Int((Double(Self.frameWidth) * Double(display.height) / Double(display.width)).rounded()))
+        configuration.height = max(
+            1, Int((Double(Self.frameWidth) * Double(display.height) / Double(display.width)).rounded()))
         configuration.pixelFormat = kCVPixelFormatType_32BGRA
         configuration.colorSpaceName = CGColorSpace.sRGB
         configuration.minimumFrameInterval = CMTime(value: 1, timescale: 60)
@@ -70,7 +72,9 @@ public final class ScreenCapture: NSObject, SCStreamOutput, SCStreamDelegate, @u
 
     // MARK: SCStreamOutput
 
-    public func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
+    public func stream(
+        _ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType
+    ) {
         guard type == .screen, sampleBuffer.isValid else { return }
         let status = Self.status(of: sampleBuffer)
         guard status == .complete, let pixelBuffer = sampleBuffer.imageBuffer else {
@@ -95,8 +99,10 @@ public final class ScreenCapture: NSObject, SCStreamOutput, SCStreamDelegate, @u
 
     /// Only `.complete` frames carry a new image; `.idle` means the screen didn't change.
     private static func status(of sampleBuffer: CMSampleBuffer) -> SCFrameStatus? {
-        guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
-              let rawStatus = attachments.first?[.status] as? Int
+        guard
+            let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false)
+                as? [[SCStreamFrameInfo: Any]],
+            let rawStatus = attachments.first?[.status] as? Int
         else { return nil }
         return SCFrameStatus(rawValue: rawStatus)
     }
@@ -133,7 +139,9 @@ struct FrameDiagnostics {
     private var counts: [String: Int] = [:]
     private var darkFrames = 0
 
-    mutating func record(status: SCFrameStatus?, frame: Frame?, now: TimeInterval = ProcessInfo.processInfo.systemUptime) -> String? {
+    mutating func record(
+        status: SCFrameStatus?, frame: Frame?, now: TimeInterval = ProcessInfo.processInfo.systemUptime
+    ) -> String? {
         counts[Self.name(of: status), default: 0] += 1
         if let frame, Self.isDark(frame) { darkFrames += 1 }
 
@@ -144,7 +152,9 @@ struct FrameDiagnostics {
         guard now - start >= 5 else { return nil }
         let total = counts.values.reduce(0, +)
         let breakdown = counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
-        let summary = String(format: "%d buffers in %.1f s (%@), %d complete frames nearly black", total, now - start, breakdown, darkFrames)
+        let summary = String(
+            format: "%d buffers in %.1f s (%@), %d complete frames nearly black", total, now - start, breakdown,
+            darkFrames)
         windowStart = now
         counts = [:]
         darkFrames = 0
@@ -168,7 +178,8 @@ struct FrameDiagnostics {
     private static func isDark(_ frame: Frame) -> Bool {
         frame.pixels.withUnsafeBytes { buffer in
             let bytes = buffer.bindMemory(to: UInt8.self)
-            var sum = 0, samples = 0
+            var sum = 0
+            var samples = 0
             for y in stride(from: 0, to: frame.height, by: 2) {
                 for x in stride(from: 0, to: frame.width, by: 2) {
                     let offset = y * frame.bytesPerRow + x * 4

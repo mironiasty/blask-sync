@@ -1,6 +1,7 @@
 import Foundation
 import HueKit
 import Testing
+
 @testable import SyncCore
 
 struct ColorProcessingTests {
@@ -11,10 +12,10 @@ struct ColorProcessingTests {
         for y in 0..<2 {
             for x in 0..<4 {
                 let offset = y * bytesPerRow + x * 4
-                pixels[offset] = x < 2 ? 0 : 255     // B
-                pixels[offset + 1] = 0               // G
-                pixels[offset + 2] = x < 2 ? 255 : 0 // R
-                pixels[offset + 3] = 255             // A
+                pixels[offset] = x < 2 ? 0 : 255  // B
+                pixels[offset + 1] = 0  // G
+                pixels[offset + 2] = x < 2 ? 255 : 0  // R
+                pixels[offset + 3] = 255  // A
             }
         }
         return Frame(width: 4, height: 2, bytesPerRow: bytesPerRow, pixels: pixels)

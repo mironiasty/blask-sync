@@ -32,9 +32,15 @@ private struct MusicSettingsPane: View {
     private var styleDescription: String {
         switch control.musicStyle {
         case .flow:
-            String(localized: "Colors flow along the strip, faster as the music gets louder. Beats travel through it as soft waves from the middle to the ends; lamps breathe with the energy and bass. Intensity sets how lively it moves.")
+            String(
+                localized:
+                    "Colors flow along the strip, faster as the music gets louder. Beats travel through it as soft waves from the middle to the ends; lamps breathe with the energy and bass. Intensity sets how lively it moves."
+            )
         case .pulse:
-            String(localized: "Colors step to the next palette color on every beat, with a flash. Lamps pulse with the bass. Intensity sets how hard beats hit and how fast they fade.")
+            String(
+                localized:
+                    "Colors step to the next palette color on every beat, with a flash. Lamps pulse with the bass. Intensity sets how hard beats hit and how fast they fade."
+            )
         }
     }
 
@@ -57,10 +63,12 @@ private struct MusicSettingsPane: View {
             GroupBox("Listening") {
                 VStack(alignment: .leading, spacing: 10) {
                     AudioMeters(control: control)
-                    Text("If the meters stay still while music plays, allow Blask Sync in System Settings → Privacy & Security → Screen & System Audio Recording, under System Audio Recording Only.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Text(
+                        "If the meters stay still while music plays, allow Blask Sync in System Settings → Privacy & Security → Screen & System Audio Recording, under System Audio Recording Only."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                     if let error = control.musicError {
                         Text(error).foregroundStyle(.red)
                     }
@@ -106,9 +114,19 @@ private struct MusicSettingsPane: View {
         .padding()
         // Meters (audio capture) run only while this tab is shown in an open, visible window,
         // or while music sync streams.
-        .onAppear { paneVisible = true; updateMeters() }
-        .onDisappear { paneVisible = false; updateMeters() }
-        .background(WindowVisibilityReader { windowVisible = $0; updateMeters() })
+        .onAppear {
+            paneVisible = true
+            updateMeters()
+        }
+        .onDisappear {
+            paneVisible = false
+            updateMeters()
+        }
+        .background(
+            WindowVisibilityReader {
+                windowVisible = $0
+                updateMeters()
+            })
     }
 
     private func updateMeters() {
@@ -151,7 +169,10 @@ private struct AudioMeters: View {
     private var meters: [(name: String, value: Double, color: Color)] {
         let features = control.audioFeatures
         return [
-            (String(localized: "meter.level", defaultValue: "Level", comment: "Audio meter"), features.loudness, .white),
+            (
+                String(localized: "meter.level", defaultValue: "Level", comment: "Audio meter"), features.loudness,
+                .white
+            ),
             (String(localized: "meter.bass", defaultValue: "Bass", comment: "Audio meter"), features.bass, .pink),
             (String(localized: "meter.mid", defaultValue: "Mid", comment: "Audio meter"), features.mid, .orange),
             (String(localized: "meter.high", defaultValue: "High", comment: "Audio meter"), features.high, .cyan),
@@ -216,7 +237,8 @@ private struct PaletteButton: View {
                 .clipShape(RoundedRectangle(cornerRadius: 4))
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(isSelected ? Color.accentColor : .secondary.opacity(0.4), lineWidth: isSelected ? 2.5 : 1)
+                        .strokeBorder(
+                            isSelected ? Color.accentColor : .secondary.opacity(0.4), lineWidth: isSelected ? 2.5 : 1)
                 )
                 Text(palette.title)
                     .font(.caption)

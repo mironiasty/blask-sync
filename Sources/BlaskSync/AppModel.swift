@@ -72,7 +72,8 @@ final class AppModel {
         errorMessage = nil
         bridges = await BridgeDiscovery.discover()
         if bridges.isEmpty {
-            errorMessage = String(localized: "No bridges found. Check that this Mac is on the same network, or enter the bridge's IP.")
+            errorMessage = String(
+                localized: "No bridges found. Check that this Mac is on the same network, or enter the bridge's IP.")
         }
     }
 
@@ -196,14 +197,16 @@ final class AppModel {
         var delay = Duration.milliseconds(500)
         for attempt in 1...5 {
             do {
-                areas = try await BridgeClient(credentials: credentials).entertainmentAreas(applicationKey: credentials.applicationKey)
+                areas = try await BridgeClient(credentials: credentials).entertainmentAreas(
+                    applicationKey: credentials.applicationKey)
                 if attempt > 1 { Self.logger.notice("fetched areas on attempt \(attempt)") }
                 return
             } catch HueError.unauthorized {
                 errorMessage = HueError.unauthorized.localizedDescription
                 return
             } catch let error as URLError where Self.isTransient(error) && attempt < 5 {
-                Self.logger.notice("areas attempt \(attempt) failed (\(error.code.rawValue)); retrying in \(delay, privacy: .public)")
+                Self.logger.notice(
+                    "areas attempt \(attempt) failed (\(error.code.rawValue)); retrying in \(delay, privacy: .public)")
                 try? await Task.sleep(for: delay)
                 delay *= 2
             } catch {
@@ -229,7 +232,10 @@ final class AppModel {
     }
 
     private static let unreachableMessage =
-        String(localized: "Can't reach the Hue Bridge. Check that it's on the same network, and that Blask Sync is allowed in System Settings → Privacy & Security → Local Network.")
+        String(
+            localized:
+                "Can't reach the Hue Bridge. Check that it's on the same network, and that Blask Sync is allowed in System Settings → Privacy & Security → Local Network."
+        )
 
     private func relocate(_ credentials: BridgeCredentials) async -> BridgeCredentials? {
         let found = await BridgeDiscovery.discover()

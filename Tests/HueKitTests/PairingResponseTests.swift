@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import HueKit
 
 struct PairingResponseTests {
@@ -30,11 +31,11 @@ struct PairingResponseTests {
 
     @Test func decodesEntertainmentArea() throws {
         let json = #"""
-        {"id":"1a2b","type":"entertainment_configuration","metadata":{"name":"Desk"},
-         "configuration_type":"screen","status":"inactive",
-         "channels":[{"channel_id":0,"position":{"x":0,"y":0,"z":0},"members":[]},
-                     {"channel_id":1,"position":{"x":1,"y":0,"z":0},"members":[]}]}
-        """#
+            {"id":"1a2b","type":"entertainment_configuration","metadata":{"name":"Desk"},
+             "configuration_type":"screen","status":"inactive",
+             "channels":[{"channel_id":0,"position":{"x":0,"y":0,"z":0},"members":[]},
+                         {"channel_id":1,"position":{"x":1,"y":0,"z":0},"members":[]}]}
+            """#
         let area = try JSONDecoder().decode(EntertainmentArea.self, from: Data(json.utf8))
         #expect(area.name == "Desk")
         #expect(area.configurationType == "screen")
@@ -45,7 +46,8 @@ struct PairingResponseTests {
 }
 
 struct ChannelDescriptionTests {
-    let strip = EntertainmentLight(serviceId: "strip", name: "Za monitorem", archetype: "hue_lightstrip_pc", segmentCount: 7)
+    let strip = EntertainmentLight(
+        serviceId: "strip", name: "Za monitorem", archetype: "hue_lightstrip_pc", segmentCount: 7)
     let lamp = EntertainmentLight(serviceId: "lamp", name: "Lampka stołowa", archetype: "table_shade", segmentCount: 1)
     let origin = EntertainmentArea.Channel.Position(x: 0, y: 0, z: 0)
 
@@ -65,7 +67,8 @@ struct ChannelDescriptionTests {
     }
 
     @Test func memberIndexDefaultsToZero() throws {
-        let json = #"{"channel_id":1,"position":{"x":0,"y":0,"z":0},"members":[{"service":{"rid":"abc","rtype":"entertainment"}}]}"#
+        let json =
+            #"{"channel_id":1,"position":{"x":0,"y":0,"z":0},"members":[{"service":{"rid":"abc","rtype":"entertainment"}}]}"#
         let channel = try JSONDecoder().decode(EntertainmentArea.Channel.self, from: Data(json.utf8))
         #expect(channel.members == [.init(serviceId: "abc", index: 0)])
     }
@@ -74,9 +77,9 @@ struct ChannelDescriptionTests {
 struct AreaLightServicesTests {
     @Test func decodesLightIds() throws {
         let json = #"""
-        {"id":"a","metadata":{"name":"Desk"},"configuration_type":"screen","status":"inactive","channels":[],
-         "light_services":[{"rid":"light-1","rtype":"light"},{"rid":"light-2","rtype":"light"}]}
-        """#
+            {"id":"a","metadata":{"name":"Desk"},"configuration_type":"screen","status":"inactive","channels":[],
+             "light_services":[{"rid":"light-1","rtype":"light"},{"rid":"light-2","rtype":"light"}]}
+            """#
         let area = try JSONDecoder().decode(EntertainmentArea.self, from: Data(json.utf8))
         #expect(area.lightIds == ["light-1", "light-2"])
     }

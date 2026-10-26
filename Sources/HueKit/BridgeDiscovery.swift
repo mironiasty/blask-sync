@@ -62,7 +62,12 @@ public enum BridgeDiscovery {
         return await withCheckedContinuation { continuation in
             let finished = OSAllocatedUnfairLock(initialState: false)
             @Sendable func finish(_ host: String?) {
-                guard finished.withLock({ done in defer { done = true }; return !done }) else { return }
+                guard
+                    finished.withLock({ done in
+                        defer { done = true }
+                        return !done
+                    })
+                else { return }
                 connection.cancel()
                 continuation.resume(returning: host)
             }
@@ -86,12 +91,13 @@ public enum BridgeDiscovery {
     }
 
     private static func hostString(_ host: NWEndpoint.Host) -> String {
-        let raw = switch host {
-        case .ipv4(let address): "\(address)"
-        case .ipv6(let address): "\(address)"
-        case .name(let name, _): name
-        @unknown default: "\(host)"
-        }
+        let raw =
+            switch host {
+            case .ipv4(let address): "\(address)"
+            case .ipv6(let address): "\(address)"
+            case .name(let name, _): name
+            @unknown default: "\(host)"
+            }
         // Drop any "%en0" interface scope suffix.
         return String(raw.split(separator: "%").first ?? Substring(raw))
     }
@@ -101,7 +107,10 @@ public enum BridgeDiscovery {
     /// Signify's lookup service: returns bridges that recently checked in from the same public IP.
     /// Rate limited, so only a fallback.
     static func queryCloud() async throws -> [DiscoveredBridge] {
-        struct Entry: Decodable { let id: String; let internalipaddress: String }
+        struct Entry: Decodable {
+            let id: String
+            let internalipaddress: String
+        }
         var request = URLRequest(url: URL(string: "https://discovery.meethue.com/")!)
         request.timeoutInterval = 4
         let (data, _) = try await URLSession.shared.data(for: request)

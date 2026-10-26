@@ -1,6 +1,7 @@
 import Foundation
 import HueKit
 import Testing
+
 @testable import SyncCore
 
 struct ScreenMappingTests {
@@ -33,7 +34,10 @@ struct ScreenMappingTests {
     @Test func moveAndResizeStayOnScreen() {
         let region = ScreenRegion(x: 0.7, y: 0.7, width: 0.2, height: 0.2)
         #expect(isClose(region.moved(dx: 0.5, dy: -1), ScreenRegion(x: 0.8, y: 0, width: 0.2, height: 0.2)))
-        #expect(isClose(region.resized(dWidth: 1, dHeight: -1), ScreenRegion(x: 0.7, y: 0.7, width: 0.3, height: ScreenRegion.minimumSize)))
+        #expect(
+            isClose(
+                region.resized(dWidth: 1, dHeight: -1),
+                ScreenRegion(x: 0.7, y: 0.7, width: 0.3, height: ScreenRegion.minimumSize)))
     }
 
     @Test func reconcileAddsAndDropsChannels() {

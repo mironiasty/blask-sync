@@ -219,12 +219,14 @@ public struct LightColor: Hashable, Sendable {
         let brightness = max(red, green, blue)
         guard brightness > 0 else { return HueLightState(x: 0.3127, y: 0.329, brightness: 0) }
         // Chromaticity only depends on the color's ratios, so normalize before linearizing.
-        let r = linear(red / brightness), g = linear(green / brightness), b = linear(blue / brightness)
-        let X = r * 0.664511 + g * 0.154324 + b * 0.162028
-        let Y = r * 0.283881 + g * 0.668433 + b * 0.047685
-        let Z = r * 0.000088 + g * 0.072310 + b * 0.986039
-        let sum = X + Y + Z
-        return HueLightState(x: X / sum, y: Y / sum, brightness: brightness)
+        let r = linear(red / brightness)
+        let g = linear(green / brightness)
+        let b = linear(blue / brightness)
+        let cieX = r * 0.664511 + g * 0.154324 + b * 0.162028
+        let cieY = r * 0.283881 + g * 0.668433 + b * 0.047685
+        let cieZ = r * 0.000088 + g * 0.072310 + b * 0.986039
+        let sum = cieX + cieY + cieZ
+        return HueLightState(x: cieX / sum, y: cieY / sum, brightness: brightness)
     }
 }
 

@@ -24,24 +24,32 @@ final class SleepMonitor {
     private static let canSystemSleep: natural_t = 0xE000_0270
     private static let systemWillSleep: natural_t = 0xE000_0280
 
-    init(onSleep: @escaping @MainActor (_ displayOnly: Bool) async -> Void, onWake: @escaping @MainActor () async -> Void) {
+    init(
+        onSleep: @escaping @MainActor (_ displayOnly: Bool) async -> Void, onWake: @escaping @MainActor () async -> Void
+    ) {
         self.onSleep = onSleep
         self.onWake = onWake
 
         let center = NSWorkspace.shared.notificationCenter
-        observers.append(center.addObserver(forName: NSWorkspace.screensDidSleepNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.displaysDidSleep() }
-        })
-        observers.append(center.addObserver(forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.displaysDidWake() }
-        })
+        observers.append(
+            center.addObserver(forName: NSWorkspace.screensDidSleepNotification, object: nil, queue: .main) {
+                [weak self] _ in
+                MainActor.assumeIsolated { self?.displaysDidSleep() }
+            })
+        observers.append(
+            center.addObserver(forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: .main) {
+                [weak self] _ in
+                MainActor.assumeIsolated { self?.displaysDidWake() }
+            })
 
-        rootPort = IORegisterForSystemPower(Unmanaged.passUnretained(self).toOpaque(), &notificationPort, { refcon, _, messageType, messageArgument in
-            guard let refcon else { return }
-            let monitor = Unmanaged<SleepMonitor>.fromOpaque(refcon).takeUnretainedValue()
-            // Delivered on the main queue (see IONotificationPortSetDispatchQueue below).
-            MainActor.assumeIsolated { monitor.powerMessage(messageType, argument: messageArgument) }
-        }, &notifier)
+        rootPort = IORegisterForSystemPower(
+            Unmanaged.passUnretained(self).toOpaque(), &notificationPort,
+            { refcon, _, messageType, messageArgument in
+                guard let refcon else { return }
+                let monitor = Unmanaged<SleepMonitor>.fromOpaque(refcon).takeUnretainedValue()
+                // Delivered on the main queue (see IONotificationPortSetDispatchQueue below).
+                MainActor.assumeIsolated { monitor.powerMessage(messageType, argument: messageArgument) }
+            }, &notifier)
         if rootPort != 0, let notificationPort {
             IONotificationPortSetDispatchQueue(notificationPort, .main)
         }
