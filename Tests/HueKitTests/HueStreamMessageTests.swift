@@ -59,3 +59,17 @@ struct FadeInTests {
         #expect(EntertainmentStream.fadeLevel(elapsed: .zero, duration: .zero) == 1)
     }
 }
+
+struct FadeOutTests {
+    @Test func fallsFromFullToBlack() {
+        let fade = Duration.seconds(4)
+        #expect(EntertainmentStream.fadeOutLevel(elapsed: .zero, duration: fade) == 1)
+        #expect(EntertainmentStream.fadeOutLevel(elapsed: .seconds(2), duration: fade) == 0.25)
+        #expect(EntertainmentStream.fadeOutLevel(elapsed: .seconds(4), duration: fade) == 0)
+        #expect(EntertainmentStream.fadeOutLevel(elapsed: .seconds(9), duration: fade) == 0)
+    }
+
+    @Test func zeroDurationIsBlackAtOnce() {
+        #expect(EntertainmentStream.fadeOutLevel(elapsed: .zero, duration: .zero) == 0)
+    }
+}

@@ -51,6 +51,9 @@ public final class EntertainmentStream: @unchecked Sendable {
     private var sendStats = IntervalStats()
     /// When the first colors went out; the fade-in counts from here. Only touched on `queue`.
     private var firstFrame: ContinuousClock.Instant?
+    /// Set by `fadeOut(over:)`: how long the lights take to go dark, and when they started to. Only
+    /// touched on `queue`.
+    private var fadeOut: (duration: Duration, start: ContinuousClock.Instant?)?
     private static let logger = Logger(subsystem: "local.blasksync", category: "stream")
 
     /// - Parameters:
@@ -90,6 +93,14 @@ public final class EntertainmentStream: @unchecked Sendable {
             throw error
         }
         queue.sync { startSending() }
+    }
+
+    /// Dims the lights to black over `duration` and keeps them dark until `stop()`, so the stream can end
+    /// without a jump. Returns once they're dark.
+    public func fadeOut(over duration: Duration) async {
+        queue.sync { fadeOut = (duration, nil) }
+        // One more frame so the last, black one has gone out.
+        try? await Task.sleep(for: duration + .milliseconds(40))
     }
 
     public func stop() async {
@@ -161,6 +172,12 @@ public final class EntertainmentStream: @unchecked Sendable {
             let level = Self.fadeLevel(elapsed: now - firstFrame, duration: fadeIn)
             if level < 1 { colors = colors.mapValues { $0.scaled(by: level) } }
         }
+        if let fadeOut {
+            let start = fadeOut.start ?? now
+            if fadeOut.start == nil { self.fadeOut?.start = now }
+            let level = Self.fadeOutLevel(elapsed: now - start, duration: fadeOut.duration)
+            colors = colors.mapValues { $0.scaled(by: level) }
+        }
         let message = HueStreamMessage.encode(areaId: areaId, colors: colors)
         connection?.send(content: message, completion: .idempotent)
         if let summary = sendStats.record() {
@@ -174,6 +191,13 @@ public final class EntertainmentStream: @unchecked Sendable {
         guard duration > .zero else { return 1 }
         let progress = min(max(elapsed / duration, 0), 1)
         return progress * progress
+    }
+
+    /// Brightness factor `elapsed` into a fade-out, from 1 to 0: the fade-in curve run backwards, so the
+    /// last steps into darkness are the gentle ones.
+    static func fadeOutLevel(elapsed: Duration, duration: Duration) -> Double {
+        guard duration > .zero else { return 0 }
+        return fadeLevel(elapsed: duration - elapsed, duration: duration)
     }
 
     /// DTLS 1.2 with a pre-shared key: identity = application key, key = decoded client key.

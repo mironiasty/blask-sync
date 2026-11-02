@@ -309,9 +309,18 @@ final class LightControl {
 
     /// Really switches the area's lights on or off. Turning off first stops sync, Manual Control and
     /// identifying, since streaming would otherwise keep them lit.
+    ///
+    /// When the stream ends, the bridge puts the lights back how they were before it started, which can be
+    /// brighter than they were streaming. So while still streaming, the lights fade to black and are
+    /// switched off, and only then let go; the bridge then restores them as off.
     func setPower(_ on: Bool, transition: Duration? = nil) async {
         errorMessage = nil
         if !on, state != .stopped {
+            if let stream {
+                await stream.fadeOut(over: Self.powerOffFade)
+                try? await BridgeClient(credentials: credentials)
+                    .setPower(false, lightIds: area.lightIds, applicationKey: credentials.applicationKey)
+            }
             await stop()
             // Give the bridge a moment to restore the lights' pre-stream state, so ours wins.
             try? await Task.sleep(for: .milliseconds(400))
@@ -341,6 +350,9 @@ final class LightControl {
     /// How long the lights take to come up when switched on (starting sync or manual, Turn Lights On,
     /// waking), so they don't jump to full brightness.
     private static let powerOnFade = Duration.seconds(1)
+
+    /// How long streamed lights take to go dark when switched off.
+    private static let powerOffFade = Duration.milliseconds(500)
 
     /// What to bring back when the displays wake; nil unless the lights were switched off for sleep.
     private var resumeAfterSleep: SleepResume?
