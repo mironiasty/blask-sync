@@ -290,14 +290,16 @@ final class LightControl {
             }
         }
         guard !colorsByLight.isEmpty else {
-            await setPower(true)
+            await setPower(true, transition: Self.powerOnFade)
             return
         }
         let client = BridgeClient(credentials: credentials)
         do {
             for (lightId, segments) in colorsByLight {
                 let ordered = segments.sorted { $0.segment < $1.segment }.map(\.color)
-                try await client.showColors(ordered, onLight: lightId, applicationKey: credentials.applicationKey)
+                try await client.showColors(
+                    ordered, onLight: lightId, applicationKey: credentials.applicationKey,
+                    transition: Self.powerOnFade)
             }
             lightsOn = colorsByLight.values.contains { $0.contains { $0.color.hueState.brightness > 0 } }
         } catch {
@@ -332,8 +334,9 @@ final class LightControl {
     /// Settings → General: switch the lights off while the Mac or its display sleeps. On by default.
     static let turnOffWhenSleepingKey = "sync.turnOffWhenSleeping"
 
-    /// How long the lights take to come back up after wake, so they don't jump to full brightness.
-    private static let wakeFade = Duration.seconds(2)
+    /// How long the lights take to come up when switched on (starting sync or manual, Turn Lights On,
+    /// waking), so they don't jump to full brightness.
+    private static let powerOnFade = Duration.seconds(1)
 
     /// What to bring back when the displays wake; nil unless the lights were switched off for sleep.
     private var resumeAfterSleep: SleepResume?
@@ -373,13 +376,13 @@ final class LightControl {
             switch resume {
             case .streaming:
                 if mode == .manual {
-                    await start(fadeIn: Self.wakeFade)
+                    await start(fadeIn: Self.powerOnFade)
                 } else {
-                    await startSync(fadeIn: Self.wakeFade)
+                    await startSync(fadeIn: Self.powerOnFade)
                 }
                 if state != .stopped || captureState == .needsPermission { return }
             case .lightsOn:
-                await setPower(true, transition: Self.wakeFade)
+                await setPower(true, transition: Self.powerOnFade)
                 if lightsOn == true { return }
             }
         }
@@ -534,11 +537,18 @@ final class LightControl {
         Task { await start() }
     }
 
-    /// - Parameter fadeIn: If set, the lights rise from black over this long instead of jumping in.
+    /// - Parameter fadeIn: How long the lights take to rise from black. If nil, they fade in over
+    ///   `powerOnFade` when they were off, and take the colors straight away when already lit (fading up
+    ///   from black would flash them dark). Identifying never fades, so the light shows up at once.
     func start(fadeIn: Duration? = nil) async {
         guard state == .stopped else { return }
         state = .starting
         errorMessage = nil
+        var fadeIn = fadeIn
+        if fadeIn == nil, !streamingForIdentify {
+            await refreshPower()
+            if lightsOn != true { fadeIn = Self.powerOnFade }
+        }
         // Start capturing while the stream connects, so screen colors are ready when it's up.
         updateEngines()
         let stream = EntertainmentStream(

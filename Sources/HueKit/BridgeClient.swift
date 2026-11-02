@@ -185,7 +185,10 @@ public final class BridgeClient: Sendable {
 
     /// Switches a light on with a color, or a gradient for gradient lights (colors in order along the
     /// light, at most 5 points), at the brightest color's brightness. All-black switches it off.
-    public func showColors(_ colors: [LightColor], onLight lightId: String, applicationKey: String) async throws {
+    /// - Parameter transition: How long the light takes to fade to the new state; the bridge's default if nil.
+    public func showColors(
+        _ colors: [LightColor], onLight lightId: String, applicationKey: String, transition: Duration? = nil
+    ) async throws {
         let states = colors.map(\.hueState)
         let brightness = states.map(\.brightness).max() ?? 0
         var body: [String: Any]
@@ -200,6 +203,7 @@ public final class BridgeClient: Sendable {
                 body["color"] = xy(state)
             }
         }
+        if let transition { body["dynamics"] = ["duration": Int(transition / .milliseconds(1))] }
         let data = try JSONSerialization.data(withJSONObject: body)
         _ = try await send("PUT", "/clip/v2/resource/light/\(lightId)", body: data, applicationKey: applicationKey)
     }
