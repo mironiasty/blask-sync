@@ -524,6 +524,34 @@
         }
       }
     },
+    "Allow Blask Sync in Login Items to open it when you log in.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erlaube Blask Sync unter „Anmeldeobjekte“, damit es beim Anmelden geöffnet wird."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permite Blask Sync en Ítems de inicio para que se abra al iniciar sesión."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisez Blask Sync dans Ouverture pour qu’il s’ouvre à l’ouverture de session."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zezwól na Blask Sync w ustawieniach „Rzeczy otwierane podczas logowania”, aby otwierał się po zalogowaniu."
+          }
+        }
+      }
+    },
     "Also when the display turns off, unless music sync is playing. When you wake your Mac, sync or the lights come back on.": {
       "localizations": {
         "de": {
@@ -548,6 +576,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Również gdy wyłącza się ekran, chyba że trwa synchronizacja z muzyką. Po wybudzeniu Maca synchronizacja lub światła włączą się ponownie."
+          }
+        }
+      }
+    },
+    "Also when you log out, and when you restart unless Blask Sync opens when you log in.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auch beim Abmelden und beim Neustart, außer Blask Sync wird beim Anmelden geöffnet."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "También al cerrar sesión, y al reiniciar salvo que Blask Sync se abra al iniciar sesión."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aussi à la fermeture de session, et au redémarrage sauf si Blask Sync s’ouvre à l’ouverture de session."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Także przy wylogowaniu oraz przy ponownym uruchamianiu, chyba że Blask Sync otwiera się po zalogowaniu."
           }
         }
       }
@@ -2209,6 +2265,7 @@
       }
     },
     "Made by %@": {
+      "comment": "About tab credit; the argument is the author's name",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2234,8 +2291,7 @@
             "value": "Autor: %@"
           }
         }
-      },
-      "comment": "About tab credit; the argument is the author's name"
+      }
     },
     "Makes averaged screen colors more vivid.": {
       "localizations": {
@@ -2749,6 +2805,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wyłączone"
+          }
+        }
+      }
+    },
+    "Open Blask Sync when you log in": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync beim Anmelden öffnen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir Blask Sync al iniciar sesión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir Blask Sync à l’ouverture de session"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otwieraj Blask Sync po zalogowaniu"
+          }
+        }
+      }
+    },
+    "Open Login Items": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmeldeobjekte öffnen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir Ítems de inicio"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir les réglages d’ouverture"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otwórz ustawienia logowania"
           }
         }
       }
@@ -3573,6 +3685,34 @@
         }
       }
     },
+    "Shut Down": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausschalten"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apagado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extinction"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wyłączanie"
+          }
+        }
+      }
+    },
     "Sleep": {
       "localizations": {
         "de": {
@@ -3625,6 +3765,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rozpocznij synchronizację"
+          }
+        }
+      }
+    },
+    "Startup": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicio"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Démarrage"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uruchamianie"
           }
         }
       }
@@ -4357,6 +4525,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wyłączaj światła po zatrzymaniu synchronizacji"
+          }
+        }
+      }
+    },
+    "Turn lights off when your Mac shuts down": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lichter ausschalten, wenn der Mac ausgeschaltet wird"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apagar las luces cuando el Mac se apague"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Éteindre les lumières quand le Mac s’éteint"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wyłączaj światła, gdy Mac się wyłącza"
           }
         }
       }

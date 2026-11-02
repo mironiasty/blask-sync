@@ -332,6 +332,10 @@ final class LightControl {
     /// Settings → General: switch the lights off while the Mac or its display sleeps. On by default.
     static let turnOffWhenSleepingKey = "sync.turnOffWhenSleeping"
 
+    /// Settings → General: switch the lights off when the Mac shuts down or logs out, and when it
+    /// restarts unless the app opens at login. On by default.
+    static let turnOffWhenShuttingDownKey = "sync.turnOffWhenShuttingDown"
+
     /// How long the lights take to come back up after wake, so they don't jump to full brightness.
     private static let wakeFade = Duration.seconds(2)
 

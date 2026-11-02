@@ -1,3 +1,4 @@
+import ServiceManagement
 import SwiftUI
 
 @main
@@ -49,6 +50,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let closing = notification.object as? NSWindow
             MainActor.assumeIsolated { self.updateActivationPolicy(closing: closing) }
         }
+
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willPowerOffNotification, object: nil, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { self.isPoweringOff = true }
+        }
     }
 
     /// Regular app while a titled window (Settings, Manual Control) is open; menu-bar-only otherwise.
@@ -62,15 +69,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(policy)
     }
 
+    /// Set when the Mac starts shutting down, restarting or logging out. Backs up the quit event's reason,
+    /// which is the main signal (see `quitReason`) and the only one that tells a restart apart.
+    private var isPoweringOff = false
+
+    private enum QuitReason {
+        /// Quit from the menu, a relaunch or an update.
+        case user
+        /// Shutting down or logging out.
+        case powerOff
+        case restart
+    }
+
+    private var quitReason: QuitReason {
+        let reason = NSAppleEventManager.shared().currentAppleEvent?
+            .attributeDescriptor(forKeyword: AEKeyword(kAEQuitReason))?.enumCodeValue
+        switch reason {
+        case OSType(kAERestart): return .restart
+        case OSType(kAEShutDown), OSType(kAELogOut), OSType(kAEReallyLogOut): return .powerOff
+        default: return isPoweringOff ? .powerOff : .user
+        }
+    }
+
+    /// Whether to switch the lights off on the way out: when the Mac shuts down or logs out, and when it
+    /// restarts unless Blask Sync opens again at login to take over the lights.
+    private var shouldTurnOffForQuit: Bool {
+        guard UserDefaults.standard.object(forKey: LightControl.turnOffWhenShuttingDownKey) as? Bool ?? true
+        else { return false }
+        switch quitReason {
+        case .user: return false
+        case .powerOff: return true
+        case .restart: return SMAppService.mainApp.status != .enabled
+        }
+    }
+
     /// Releases the lights before any graceful quit (menu, logout, shutdown, relaunch). Without the
-    /// stop message the bridge would hold the lights for ~10 s.
+    /// stop message the bridge would hold the lights for ~10 s. When the Mac is shutting down, restarting
+    /// or logging out, switches them off instead if that's the chosen behavior (see `shouldTurnOffForQuit`).
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let control = model.lightControl, control.state != .stopped else { return .terminateNow }
+        guard let control = model.lightControl else { return .terminateNow }
+        let turnOff = shouldTurnOffForQuit
+        guard turnOff || control.state != .stopped else { return .terminateNow }
         Task {
             await withTaskGroup(of: Void.self) { group in
-                group.addTask { await control.shutdown() }
+                group.addTask {
+                    if turnOff { await control.setPower(false) }
+                    await control.shutdown()
+                }
                 // An unreachable bridge mustn't block quitting.
-                group.addTask { try? await Task.sleep(for: .seconds(2)) }
+                group.addTask { try? await Task.sleep(for: .seconds(turnOff ? 5 : 2)) }
                 await group.next()
                 group.cancelAll()
             }

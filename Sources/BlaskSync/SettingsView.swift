@@ -40,6 +40,8 @@ private struct GeneralSettings: View {
     @State private var manualHost = ""
     @AppStorage(LightControl.turnOffWhenStoppingKey) private var turnOffWhenStopping = false
     @AppStorage(LightControl.turnOffWhenSleepingKey) private var turnOffWhenSleeping = true
+    @AppStorage(LightControl.turnOffWhenShuttingDownKey) private var turnOffWhenShuttingDown = true
+    @State private var launchAtLogin = LaunchAtLogin()
     @State private var language = AppLanguage.current
 
     var body: some View {
@@ -73,6 +75,31 @@ private struct GeneralSettings: View {
                     Text(
                         "Also when the display turns off, unless music sync is playing. When you wake your Mac, sync or the lights come back on."
                     )
+                }
+                Section {
+                    Toggle("Turn lights off when your Mac shuts down", isOn: $turnOffWhenShuttingDown)
+                } header: {
+                    Text("Shut Down")
+                } footer: {
+                    Text(
+                        "Also when you log out, and when you restart unless Blask Sync opens when you log in."
+                    )
+                }
+            }
+
+            Section("Startup") {
+                Toggle("Open Blask Sync when you log in", isOn: $launchAtLogin.isEnabled)
+                if launchAtLogin.needsApproval {
+                    HStack {
+                        Text("Allow Blask Sync in Login Items to open it when you log in.")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Open Login Items") { launchAtLogin.openSystemSettings() }
+                    }
+                }
+                if let error = launchAtLogin.errorMessage {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
                 }
             }
 
@@ -115,6 +142,10 @@ private struct GeneralSettings: View {
         .formStyle(.grouped)
         .frame(width: 520)
         .frame(minHeight: 380)
+        // The login item can also be switched in System Settings.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            launchAtLogin.refresh()
+        }
     }
 
     private func pairedBridge(_ credentials: BridgeCredentials) -> some View {
