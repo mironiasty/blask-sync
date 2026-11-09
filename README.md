@@ -175,8 +175,10 @@ the app, not to a window, so sync keeps running with all windows closed.
   brightness** (dark scenes glow faintly instead of switching off).
 - **Smoothing.** `ScreenSyncEngine` eases toward the latest colors at 50 Hz through two exponential stages,
   an ease-in/ease-out curve rather than a jolt. **Intensity** sets the average delay: subtle 0.6 s,
-  moderate 0.3 s, high 0.18 s, extreme 0.1 s. Even Extreme covers the usual gap between captured frames, and
-  easing continues while the screen is static.
+  moderate 0.3 s, high 0.12 s, extreme 0.04 s. The delay never drops below the typical gap between captured
+  frames, so frames blend in instead of showing as steps: on a desktop, where frames arrive only when
+  something changes, High and Extreme slow to about 0.1 s, while games at 60 fps keep them fast. Easing
+  continues while the screen is static.
 
 The first time, macOS asks for **Screen Recording** permission, and the app has to be relaunched after you
 allow it.
