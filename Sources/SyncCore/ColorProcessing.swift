@@ -69,15 +69,43 @@ public enum ColorExtractor {
 public enum SyncIntensity: String, CaseIterable, Codable, Sendable {
     case subtle, moderate, high, extreme
 
-    /// Average delay of the smoothed color behind the screen. Even Extreme stays above the typical gap
-    /// between captured frames (often 50-150 ms), so new frames blend in instead of showing as steps.
+    /// Average delay of the smoothed color behind the screen, when frames arrive often enough. Use
+    /// `timeConstant(frameInterval:)` for the delay actually applied.
     public var timeConstant: TimeInterval {
         switch self {
         case .subtle: 0.6
         case .moderate: 0.3
-        case .high: 0.18
-        case .extreme: 0.1
+        case .high: 0.12
+        case .extreme: 0.04
         }
+    }
+
+    /// The delay to smooth with, given the typical gap between captured frames. It never drops below
+    /// that gap, so new frames blend in instead of showing as steps: ScreenCaptureKit only delivers a frame
+    /// when the screen changes, often 50-150 ms apart on a desktop or in video. Games redraw every frame, so
+    /// there the fast settings stay fast.
+    public func timeConstant(frameInterval: TimeInterval) -> TimeInterval {
+        max(timeConstant, frameInterval)
+    }
+}
+
+/// Typical gap between captured frames, eased so one late frame barely moves it.
+public struct FrameIntervalEstimate: Sendable {
+    /// Assumed before frames arrive: a desktop's usual pace, so the first moments err toward smooth.
+    public static let initial: TimeInterval = 0.1
+    /// Longer gaps count as this: the screen sat still, which says nothing about how often it changes in motion.
+    public static let maximum: TimeInterval = 0.15
+
+    public private(set) var interval: TimeInterval = initial
+    private var lastFrame: TimeInterval?
+
+    public init() {}
+
+    public mutating func record(at now: TimeInterval) {
+        defer { lastFrame = now }
+        guard let lastFrame else { return }
+        let gap = min(max(now - lastFrame, 0), Self.maximum)
+        interval += (gap - interval) * 0.1
     }
 }
 

@@ -79,6 +79,37 @@ struct ColorProcessingTests {
     }
 }
 
+struct AdaptiveSmoothingTests {
+    private func estimate(gap: TimeInterval, frames: Int) -> TimeInterval {
+        var estimate = FrameIntervalEstimate()
+        for frame in 0..<frames { estimate.record(at: Double(frame) * gap) }
+        return estimate.interval
+    }
+
+    @Test func gameAtSixtyFpsKeepsExtremeFast() {
+        let interval = estimate(gap: 1.0 / 60, frames: 120)
+        #expect(abs(interval - 1.0 / 60) < 0.002)
+        #expect(SyncIntensity.extreme.timeConstant(frameInterval: interval) == 0.04)
+    }
+
+    @Test func sparseDesktopFramesSlowExtremeToBlendThem() {
+        let interval = estimate(gap: 0.12, frames: 100)
+        #expect(abs(SyncIntensity.extreme.timeConstant(frameInterval: interval) - 0.12) < 0.005)
+    }
+
+    @Test func calmSettingsAreUnaffected() {
+        #expect(SyncIntensity.moderate.timeConstant(frameInterval: 0.15) == 0.3)
+        #expect(SyncIntensity.subtle.timeConstant(frameInterval: 0.15) == 0.6)
+    }
+
+    @Test func aStillScreenDoesntCountAsSlowMotion() {
+        var estimate = FrameIntervalEstimate()
+        for frame in 0..<120 { estimate.record(at: Double(frame) / 60) }
+        estimate.record(at: 30)  // the screen sat still for half a minute
+        #expect(estimate.interval < 0.04)
+    }
+}
+
 struct AmbientBlendTests {
     @Test func lampBesideScreenBlendsTowardOverallColor() {
         // Left half red, right half blue (overall: purple).

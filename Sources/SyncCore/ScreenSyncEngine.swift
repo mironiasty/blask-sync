@@ -35,6 +35,8 @@ public final class ScreenSyncEngine: @unchecked Sendable {
     private var timer: DispatchSourceTimer?
     private var tickStats = IntervalStats()
     private let frameStats = OSAllocatedUnfairLock(initialState: IntervalStats())
+    /// How often frames arrive; the smoothing never goes faster than this, so frames don't show as steps.
+    private let frameInterval = OSAllocatedUnfairLock(initialState: FrameIntervalEstimate())
     private static let logger = Logger(subsystem: "local.blasksync", category: "screen-sync")
 
     /// - Parameter output: Called on the engine's queue with brightness-scaled colors, 50 times a second.
@@ -59,6 +61,7 @@ public final class ScreenSyncEngine: @unchecked Sendable {
         let (mapping, adjustment) = settings.withLock { ($0.mapping, $0.adjustment) }
         let colors = ColorExtractor.averageColors(in: frame, mapping: mapping).mapValues(adjustment.apply)
         target.withLock { $0 = colors }
+        frameInterval.withLock { $0.record(at: ProcessInfo.processInfo.systemUptime) }
         if let summary = frameStats.withLock({ $0.record() }) {
             Self.logger.notice("captured \(summary.description, privacy: .public)")
         }
@@ -81,6 +84,7 @@ public final class ScreenSyncEngine: @unchecked Sendable {
             timer = nil
             smoother = ColorSmoother()
         }
+        frameInterval.withLock { $0 = FrameIntervalEstimate() }
     }
 
     /// Runs on `queue`.
@@ -88,9 +92,10 @@ public final class ScreenSyncEngine: @unchecked Sendable {
         let goal = target.withLock { $0 }
         guard !goal.isEmpty else { return }
         let settings = settings.withLock { $0 }
+        let interval = frameInterval.withLock { $0.interval }
         let smoothed = smoother.update(
             toward: goal,
-            timeConstant: settings.intensity.timeConstant,
+            timeConstant: settings.intensity.timeConstant(frameInterval: interval),
             now: ProcessInfo.processInfo.systemUptime
         )
         output(smoothed.mapValues { $0.scaled(by: settings.brightness) })
