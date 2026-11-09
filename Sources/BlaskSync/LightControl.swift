@@ -343,6 +343,10 @@ final class LightControl {
     /// Settings → General: switch the lights off while the Mac or its display sleeps. On by default.
     static let turnOffWhenSleepingKey = "sync.turnOffWhenSleeping"
 
+    /// Settings → General: bring the lights back on every wake, even in the daytime after a night's
+    /// sleep (see `WakePolicy`). Off by default.
+    static let alwaysRestoreAfterSleepKey = "sync.alwaysRestoreAfterSleep"
+
     /// Settings → General: switch the lights off when the Mac shuts down or logs out, and when it
     /// restarts unless the app opens at login. On by default.
     static let turnOffWhenShuttingDownKey = "sync.turnOffWhenShuttingDown"
@@ -356,6 +360,8 @@ final class LightControl {
 
     /// What to bring back when the displays wake; nil unless the lights were switched off for sleep.
     private var resumeAfterSleep: SleepResume?
+    /// When `prepareForSleep` switched the lights off.
+    private var sleptAt: Date?
     private enum SleepResume {
         /// Sync or Manual Control was streaming; `mode` still says which.
         case streaming
@@ -376,14 +382,21 @@ final class LightControl {
             guard lightsOn == true else { return }
             resumeAfterSleep = .lightsOn
         }
+        sleptAt = .now
         await setPower(false)
     }
 
     /// Brings back what `prepareForSleep` switched off, fading the lights in, retrying while Wi-Fi
-    /// reconnects. Gives up if the lights are taken over in the meantime.
+    /// reconnects. Gives up if the lights are taken over in the meantime. Leaves them off when waking in
+    /// the daytime after a night's sleep, unless set to always bring them back.
     func wakeFromSleep() async {
         guard let resume = resumeAfterSleep else { return }
         resumeAfterSleep = nil
+        if !UserDefaults.standard.bool(forKey: Self.alwaysRestoreAfterSleepKey), let sleptAt,
+            !WakePolicy.shouldRestoreLights(sleptAt: sleptAt, wokeAt: .now)
+        {
+            return
+        }
         for attempt in 0..<10 {
             if attempt > 0 {
                 try? await Task.sleep(for: .seconds(2))

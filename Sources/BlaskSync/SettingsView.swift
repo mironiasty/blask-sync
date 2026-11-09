@@ -40,6 +40,7 @@ private struct GeneralSettings: View {
     @State private var manualHost = ""
     @AppStorage(LightControl.turnOffWhenStoppingKey) private var turnOffWhenStopping = false
     @AppStorage(LightControl.turnOffWhenSleepingKey) private var turnOffWhenSleeping = true
+    @AppStorage(LightControl.alwaysRestoreAfterSleepKey) private var alwaysRestoreAfterSleep = false
     @AppStorage(LightControl.turnOffWhenShuttingDownKey) private var turnOffWhenShuttingDown = true
     @State private var launchAtLogin = LaunchAtLogin()
     @State private var language = AppLanguage.current
@@ -69,11 +70,13 @@ private struct GeneralSettings: View {
                 }
                 Section {
                     Toggle("Turn lights off when your Mac sleeps", isOn: $turnOffWhenSleeping)
+                    Toggle("Always turn lights back on when your Mac wakes", isOn: $alwaysRestoreAfterSleep)
+                        .disabled(!turnOffWhenSleeping)
                 } header: {
                     Text("Sleep")
                 } footer: {
                     Text(
-                        "Also when the display turns off, unless music sync is playing. When you wake your Mac, sync or the lights come back on."
+                        "Also when the display turns off, unless music sync is playing. When you wake your Mac, sync or the lights come back on, except between 7 AM and 4 PM after it slept through the night."
                     )
                 }
                 Section {
