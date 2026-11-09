@@ -552,7 +552,36 @@
         }
       }
     },
+    "Also when the display turns off, unless music sync is playing. When you wake your Mac, sync or the lights come back on, except between 7 AM and 4 PM after it slept through the night.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auch wenn sich der Bildschirm ausschaltet, außer während der Musiksynchronisation. Wenn der Mac aufwacht, gehen Synchronisation bzw. Lichter wieder an, außer zwischen 7 und 16 Uhr, wenn er die Nacht über geschlafen hat."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "También cuando se apaga la pantalla, salvo durante la sincronización con música. Al reactivar el Mac, vuelven la sincronización o las luces, excepto entre las 7:00 y las 16:00 si ha estado en reposo toda la noche."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Également quand l’écran s’éteint, sauf pendant la synchronisation avec la musique. À la sortie de veille du Mac, la synchronisation ou les lumières reprennent, sauf entre 7 h et 16 h s’il a été en veille toute la nuit."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Również gdy wyłącza się ekran, chyba że trwa synchronizacja z muzyką. Po wybudzeniu Maca synchronizacja lub światła włączą się ponownie, chyba że Mac spał całą noc i budzi się między 7:00 a 16:00."
+          }
+        }
+      }
+    },
     "Also when the display turns off, unless music sync is playing. When you wake your Mac, sync or the lights come back on.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -604,6 +633,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Także przy wylogowaniu oraz przy ponownym uruchamianiu, chyba że Blask Sync otwiera się po zalogowaniu."
+          }
+        }
+      }
+    },
+    "Always turn lights back on when your Mac wakes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lichter immer wieder einschalten, wenn der Mac aufwacht"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volver a encender siempre las luces al reactivar el Mac"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toujours rallumer les lumières à la sortie de veille du Mac"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zawsze włączaj światła po wybudzeniu Maca"
           }
         }
       }
