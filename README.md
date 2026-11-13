@@ -70,15 +70,9 @@ open "build/BlaskSync Dev.app" --args -AppleLanguages '(pl)'
 ### Installing a release
 
 Download `BlaskSync-vX.Y.Z.zip` from [Releases](https://github.com/mironiasty/blask-sync/releases), unzip it
-and move **BlaskSync.app** to Applications. Release builds are signed with a self-signed certificate, not
-notarized, so macOS blocks the first launch; clear the download quarantine once:
-
-```sh
-xattr -dr com.apple.quarantine /Applications/BlaskSync.app
-```
-
-(or try opening it, then click **Open Anyway** in System Settings → Privacy & Security). Every release is
-signed with the same certificate, so Screen Recording carries over when updating.
+and move **BlaskSync.app** to Applications. Releases after 0.4 are signed with a Developer ID certificate and
+notarized by Apple, so they open like any other app. 0.4 and earlier are self-signed; clear their download
+quarantine once with `xattr -dr com.apple.quarantine /Applications/BlaskSync.app`.
 
 ### Updates
 
@@ -93,9 +87,12 @@ in Applications with the quarantine cleared; macOS runs a quarantined app from a
 Push a version tag; the [Release workflow](.github/workflows/release.yml) runs the tests, builds a universal
 (Apple Silicon + Intel) app stamped with that version, and publishes it as a GitHub release with its update feed (`scripts/make-appcast.sh`). The release notes,
 shown on the release page and in the app's update window, are the tag message after its first line
-(`scripts/release-notes.sh`; without one, the commits since the previous tag). It uses three repository secrets: the code signing certificate in
-`SIGNING_P12` (base64 `.p12`) and `SIGNING_P12_PASSWORD`, and the Sparkle update signing key in
-`SPARKLE_PRIVATE_KEY` (from `generate_keys --account blask-sync -x`):
+(`scripts/release-notes.sh`; without one, the commits since the previous tag). It signs the app with the Developer ID certificate under the hardened runtime and notarizes it. It uses
+these repository secrets: the Developer ID Application certificate in `SIGNING_P12` (base64 `.p12`) and
+`SIGNING_P12_PASSWORD`, an App Store Connect API key for notarization in `ASC_KEY_ID`, `ASC_ISSUER_ID` and
+`ASC_KEY_P8`, and the Sparkle update signing key in `SPARKLE_PRIVATE_KEY` (from
+`generate_keys --account blask-sync -x`). The Mac App Store version is built and uploaded separately; see
+[appstore/README.md](appstore/README.md).
 
 ```sh
 # notes.md: "Blask Sync 0.2.0", a blank line, then Markdown (## headings, - bullets, **bold**, `code`)
