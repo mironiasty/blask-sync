@@ -35,3 +35,10 @@ jobs:
       - name: Translations
         if: ${{ !cancelled() }}
         run: scripts/check-strings.sh
+
+      # The Mac App Store variant leaves Sparkle out (APP_STORE=1), so make sure it still builds.
+      - name: Build App Store variant
+        if: ${{ !cancelled() }}
+        env:
+          APP_STORE: "1"
+        run: swift build --scratch-path .build/appstore -Xswiftc -warnings-as-errors

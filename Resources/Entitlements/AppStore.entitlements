@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The Mac App Store build runs in the App Sandbox. It needs only outgoing connections (the Hue Bridge's
+     HTTPS API, its DTLS entertainment stream, Bonjour discovery and discovery.meethue.com) and audio input
+     for the Core Audio tap behind music sync. scripts/package-appstore.sh adds the team and application
+     identifiers from the provisioning profile. -->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+</dict>
+</plist>

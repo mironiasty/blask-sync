@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy – Blask Sync</title>
+<meta name="description" content="Blask Sync collects no data. Your screen and audio are analyzed on your Mac, and only light colors go to your Hue Bridge on your local network.">
+<link rel="canonical" href="https://blask.miron.asia/privacy.html">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0a10;
+    --bg-raised: #14131c;
+    --line: #26242f;
+    --text: #f2f0f7;
+    --muted: #a19eae;
+    --faint: #6d6a7a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.65 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+  nav { border-bottom: 1px solid var(--line); }
+  nav .wrap { display: flex; align-items: center; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; text-decoration: none; }
+  .brand img { width: 28px; height: 28px; }
+  main { padding: 56px 0 72px; }
+  h1 { font-size: clamp(32px, 6vw, 44px); letter-spacing: -0.03em; line-height: 1.15; margin: 0 0 8px; }
+  h2 { font-size: 21px; margin: 40px 0 10px; }
+  p, li { color: var(--muted); }
+  p { margin: 0 0 14px; }
+  ul { padding-left: 22px; margin: 0 0 14px; }
+  li { margin-bottom: 6px; }
+  strong { color: var(--text); font-weight: 600; }
+  .updated { color: var(--faint); font-size: 15px; margin-bottom: 32px; }
+  .summary { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; }
+  .summary p { margin: 0; color: var(--text); }
+  footer { border-top: 1px solid var(--line); padding: 28px 0 40px; font-size: 14px; color: var(--faint); }
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="icon.png" alt="">Blask Sync</a>
+  </div>
+</nav>
+
+<main class="wrap">
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated November 13, 2026</p>
+
+  <div class="summary">
+    <p><strong>Blask Sync collects no data.</strong> It has no account, no analytics and no ads. Your screen and the
+    audio your Mac plays are analyzed on your Mac and never stored or sent anywhere. Only light colors go to your Hue
+    Bridge, on your own network.</p>
+  </div>
+
+  <h2>What stays on your Mac</h2>
+  <ul>
+    <li><strong>Screen.</strong> For screen sync, Blask Sync captures a small, low-resolution picture of the display
+    you choose, works out the average color of each area your lights follow, and discards the picture. Nothing is
+    recorded or saved.</li>
+    <li><strong>Audio.</strong> For music sync, it listens to the sound your Mac plays and measures its loudness,
+    bass, mids, highs and beats. The audio itself is not recorded, saved or sent anywhere.</li>
+    <li><strong>Settings.</strong> Your preferences, light layouts and colors are stored on your Mac, along with the
+    pairing key your Hue Bridge issues.</li>
+  </ul>
+
+  <h2>What goes over the network</h2>
+  <ul>
+    <li><strong>Your Hue Bridge.</strong> Blask Sync talks to your Hue Bridge directly on your local network: it reads
+    your lights and entertainment areas and sends them colors. This never leaves your network.</li>
+    <li><strong>Bridge discovery.</strong> To find your bridge, it looks on your local network and may ask
+    <code>discovery.meethue.com</code>, the Philips Hue discovery service run by Signify, which bridges are on your
+    network. That request goes to Signify like any web request, with your IP address; Blask Sync sends nothing else.
+    Signify's own privacy notice covers that service.</li>
+    <li><strong>Updates.</strong> The version downloaded from GitHub checks GitHub for new versions once a day (you can
+    turn this off in Settings). The Mac App Store version is updated by the App Store.</li>
+  </ul>
+
+  <h2>Permissions</h2>
+  <p>macOS asks for <strong>Screen Recording</strong> (for screen sync), <strong>System Audio Recording</strong> (for
+  music sync) and <strong>Local Network</strong> access (to reach your bridge). Each is used only for the purpose
+  above, and you can withdraw it at any time in System Settings → Privacy &amp; Security.</p>
+
+  <h2>Children</h2>
+  <p>Blask Sync collects no personal information from anyone, including children.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, the new version will be posted on this page with a new date.</p>
+
+  <h2>Contact</h2>
+  <p>Questions? Open an issue on <a href="https://github.com/mironiasty/blask-sync/issues">GitHub</a>.</p>
+</main>
+
+<footer>
+  <div class="wrap">Blask Sync is an independent project, not affiliated with or endorsed by Signify or Philips Hue.
+  Philips Hue is a trademark of Signify Holding.</div>
+</footer>
+</body>
+</html>
