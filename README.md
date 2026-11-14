@@ -97,6 +97,8 @@ shown on the release page and in the app's update window, are the tag message af
 `SIGNING_P12` (base64 `.p12`) and `SIGNING_P12_PASSWORD`, and the Sparkle update signing key in
 `SPARKLE_PRIVATE_KEY` (from `generate_keys --account blask-sync -x`):
 
+The Mac App Store version is built and uploaded separately, with `scripts/package-appstore.sh`.
+
 ```sh
 # notes.md: "Blask Sync 0.2.0", a blank line, then Markdown (## headings, - bullets, **bold**, `code`)
 git tag -a --cleanup=whitespace v0.2.0 -F notes.md && git push origin v0.2.0

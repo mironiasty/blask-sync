@@ -30,6 +30,10 @@
 	<string>14.2</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Miron Pawlik</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
