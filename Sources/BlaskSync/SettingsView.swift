@@ -48,6 +48,9 @@ private struct GeneralSettings: View {
     var body: some View {
         Form {
             Section("Hue Bridge") {
+                if model.localNetworkDenied {
+                    LocalNetworkNotice(model: model)
+                }
                 if let credentials = model.credentials {
                     pairedBridge(credentials)
                 } else if case .waitingForLinkButton(_, let deadline) = model.pairing {
@@ -309,5 +312,26 @@ private struct ScreenSettingsPane: View {
             WindowVisibilityReader { visible in
                 if !visible { Task { await control.identify(nil) } }
             })
+    }
+}
+
+/// Shown while macOS keeps Blask Sync off the local network, with a way to fix it.
+struct LocalNetworkNotice: View {
+    let model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(
+                "Blask Sync isn't allowed to use the local network, so it can't find or control your Hue Bridge.",
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .foregroundStyle(.orange)
+            .fixedSize(horizontal: false, vertical: true)
+            Text("Turn on Blask Sync in System Settings → Privacy & Security → Local Network, then come back.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Open Local Network Settings…", action: model.openLocalNetworkSettings)
+        }
     }
 }
