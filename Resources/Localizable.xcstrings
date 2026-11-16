@@ -805,6 +805,34 @@
         }
       }
     },
+    "Blask Sync isn't allowed to use the local network, so it can't find or control your Hue Bridge.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync darf das lokale Netzwerk nicht verwenden und kann Ihre Hue Bridge daher weder finden noch steuern."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync no tiene permiso para usar la red local, así que no puede encontrar ni controlar tu puente Hue."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync n’est pas autorisé à utiliser le réseau local et ne peut donc ni trouver ni contrôler votre pont Hue."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blask Sync nie ma dostępu do sieci lokalnej, więc nie może znaleźć mostka Hue ani nim sterować."
+          }
+        }
+      }
+    },
     "Blask Sync needs Screen Recording permission to sample your screen.": {
       "localizations": {
         "de": {
@@ -2894,6 +2922,34 @@
         }
       }
     },
+    "Open Local Network Settings…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen für lokales Netzwerk öffnen …"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir ajustes de red local…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir les réglages Réseau local…"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otwórz ustawienia sieci lokalnej…"
+          }
+        }
+      }
+    },
     "Open Login Items": {
       "localizations": {
         "de": {
@@ -4638,6 +4694,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wyłączaj światła, gdy Mac jest uśpiony"
+          }
+        }
+      }
+    },
+    "Turn on Blask Sync in System Settings → Privacy & Security → Local Network, then come back.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktivieren Sie Blask Sync unter Systemeinstellungen → Datenschutz & Sicherheit → Lokales Netzwerk und kehren Sie dann hierher zurück."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activa Blask Sync en Ajustes del Sistema → Privacidad y seguridad → Red local y vuelve aquí."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activez Blask Sync dans Réglages Système → Confidentialité et sécurité → Réseau local, puis revenez ici."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Włącz Blask Sync w Ustawieniach systemowych → Prywatność i ochrona → Sieć lokalna, a potem wróć tutaj."
           }
         }
       }

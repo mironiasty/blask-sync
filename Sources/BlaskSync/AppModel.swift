@@ -29,6 +29,13 @@ final class AppModel {
     /// Sync session for the default area; lives as long as the app, independent of any window.
     private(set) var lightControl: LightControl?
     var errorMessage: String?
+    /// macOS doesn't let Blask Sync reach the local network, so it can't find or control the bridge.
+    private(set) var localNetworkDenied = false {
+        didSet {
+            if localNetworkDenied, !oldValue { watchLocalNetwork() }
+        }
+    }
+    @ObservationIgnored private var localNetworkWatch: Task<Void, Never>?
 
     private static let defaultAreaKey = "defaultAreaId"
 
@@ -54,13 +61,38 @@ final class AppModel {
             onSleep: { [weak self] displayOnly in await self?.lightControl?.prepareForSleep(displayOnly: displayOnly) },
             onWake: { [weak self] in await self?.lightControl?.wakeFromSleep() }
         )
-        Task {
-            if credentials != nil {
-                await refreshAreas()
-            } else {
-                await discover()
+        Task { await reconnect() }
+    }
+
+    /// Fetches the paired bridge's areas, or looks for bridges when none is paired.
+    private func reconnect() async {
+        if credentials != nil {
+            await refreshAreas()
+        } else {
+            await discover()
+        }
+    }
+
+    /// While local network access is missing, checks every few seconds and reconnects once the user allows it
+    /// (in the consent prompt or in System Settings).
+    private func watchLocalNetwork() {
+        localNetworkWatch?.cancel()
+        localNetworkWatch = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(3))
+                guard let self, self.localNetworkDenied else { return }
+                if await !LocalNetworkAccess.isDenied(host: self.credentials?.host) {
+                    await self.reconnect()
+                    return
+                }
             }
         }
+    }
+
+    /// Opens System Settings → Privacy & Security → Local Network.
+    func openLocalNetworkSettings() {
+        NSWorkspace.shared.open(
+            URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork")!)
     }
 
     // MARK: Discovery
@@ -71,7 +103,8 @@ final class AppModel {
         defer { isDiscovering = false }
         errorMessage = nil
         bridges = await BridgeDiscovery.discover()
-        if bridges.isEmpty {
+        localNetworkDenied = bridges.isEmpty ? await LocalNetworkAccess.isDenied() : false
+        if bridges.isEmpty, !localNetworkDenied {
             errorMessage = String(
                 localized: "No bridges found. Check that this Mac is on the same network, or enter the bridge's IP.")
         }
@@ -86,7 +119,10 @@ final class AppModel {
             bridges.removeAll { $0.id == bridge.id }
             bridges.append(bridge)
         } catch {
-            errorMessage = String(localized: "No Hue Bridge at \(host): \(error.localizedDescription)")
+            localNetworkDenied = await LocalNetworkAccess.isDenied(host: host)
+            if !localNetworkDenied {
+                errorMessage = String(localized: "No Hue Bridge at \(host): \(error.localizedDescription)")
+            }
         }
     }
 
@@ -118,7 +154,8 @@ final class AppModel {
                 // A cancelled task has already been superseded; leave its state alone.
                 guard !Task.isCancelled else { return }
                 pairing = .idle
-                errorMessage = error.localizedDescription
+                localNetworkDenied = await LocalNetworkAccess.isDenied(host: bridge.host)
+                if !localNetworkDenied { errorMessage = error.localizedDescription }
             }
         }
     }
@@ -191,6 +228,7 @@ final class AppModel {
         isLoadingAreas = true
         defer { isLoadingAreas = false }
         errorMessage = nil
+        localNetworkDenied = false
 
         // Right after launch, macOS briefly blocks local network access ("Local network prohibited",
         // reported as -1009 "offline") until it applies the app's permission. Retry before giving up.
@@ -214,6 +252,9 @@ final class AppModel {
                 break
             }
         }
+
+        localNetworkDenied = await LocalNetworkAccess.isDenied(host: credentials.host)
+        guard !localNetworkDenied else { return }
 
         // DHCP may have given the bridge a new address; look it up by ID and retry once.
         guard let moved = await relocate(credentials) else {

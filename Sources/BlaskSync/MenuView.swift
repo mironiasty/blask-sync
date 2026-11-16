@@ -38,6 +38,10 @@ struct MenuView: View {
                     .foregroundStyle(.secondary)
             }
 
+            if model.localNetworkDenied {
+                LocalNetworkNotice(model: model)
+            }
+
             if let error = model.errorMessage {
                 Text(error)
                     .font(.callout)
