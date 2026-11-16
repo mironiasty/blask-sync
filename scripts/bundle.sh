@@ -99,6 +99,9 @@ if [[ -n "${PROVISIONING_PROFILE:-}" ]]; then
     rm "$PROFILE_PLIST"
 fi
 
+# Downloaded files (a provisioning profile, say) carry com.apple.quarantine, which the App Store rejects.
+xattr -cr "$APP"
+
 if [[ -d "$APP/Contents/Frameworks/Sparkle.framework" ]]; then
     # Sparkle's nested helpers first, then the app, so every piece carries the same signature.
     "${SIGN[@]}" --deep "$APP/Contents/Frameworks/Sparkle.framework"
